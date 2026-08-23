@@ -1,0 +1,31 @@
+from django.contrib.auth import views as auth_views
+from django.urls import path
+from django.urls import reverse_lazy
+from .forms import EmailAuthenticationForm
+from . import views
+
+urlpatterns = [
+    path("", views.home, name="home"),
+    path("account/register/", views.register, name="register"),
+    path("account/verify/<uuid:token>/", views.verify_email, name="verify_email"),
+    path("account/login/", auth_views.LoginView.as_view(template_name="registration/login.html", authentication_form=EmailAuthenticationForm), name="login"),
+    path("account/logout/", auth_views.LogoutView.as_view(), name="logout"),
+    path("account/password-reset/", auth_views.PasswordResetView.as_view(template_name="registration/password_reset_form.html", email_template_name="registration/password_reset_email.txt", success_url=reverse_lazy("password_reset_done")), name="password_reset"),
+    path("account/password-reset/sent/", auth_views.PasswordResetDoneView.as_view(template_name="registration/password_reset_done.html"), name="password_reset_done"),
+    path("account/password-reset/<uidb64>/<token>/", auth_views.PasswordResetConfirmView.as_view(template_name="registration/password_reset_confirm.html", success_url=reverse_lazy("password_reset_complete")), name="password_reset_confirm"),
+    path("account/password-reset/complete/", auth_views.PasswordResetCompleteView.as_view(template_name="registration/password_reset_complete.html"), name="password_reset_complete"),
+    path("account/orders/", views.my_orders, name="my_orders"),
+    path("products/", views.catalog, name="catalog"),
+    path("category/<str:category_slug>/", views.catalog, name="category"),
+    path("product/<str:slug>/", views.product_detail, name="product_detail"),
+    path("cart/", views.cart, name="cart"),
+    path("cart/add/<int:product_id>/", views.cart_add, name="cart_add"),
+    path("cart/update/<int:product_id>/", views.cart_update, name="cart_update"),
+    path("checkout/", views.checkout, name="checkout"),
+    path("order/<str:code>/", views.order_status, name="order_status"),
+    path("payment/zarinpal/callback/", views.zarinpal_callback, name="zarinpal_callback"),
+    path("page/<str:page>/", views.content_page, name="content_page"),
+    path("health/", views.health, name="health"),
+    path("robots.txt", views.robots, name="robots"),
+    path("sitemap.xml", views.sitemap, name="sitemap"),
+]

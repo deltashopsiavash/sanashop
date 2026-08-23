@@ -1,0 +1,15 @@
+{% extends 'shop/base.html' %}{% load static %}
+{% block title %}{{ store_settings.site_name }} | فروشگاه اکسسوری{% endblock %}
+{% block content %}
+<main>
+  <section class="hero"><div class="container hero-grid">
+    <div class="hero-copy"><span class="eyebrow">کالکشن تازه رسیده</span><h1>استایل تو،<br><em>امضای توست.</em></h1><p>اکسسوری‌هایی برای آن جزئیات کوچکی که حالِ استایل را عوض می‌کنند؛ انتخاب‌شده با وسواس و آماده ارسال.</p><div class="hero-actions"><a class="btn btn-primary" href="{% url 'catalog' %}">مشاهده محصولات</a><a class="text-link" href="#categories">انتخاب بر اساس دسته ←</a></div><div class="hero-points"><span>✓ ضمانت سلامت</span><span>✓ ارسال سراسر ایران</span><span>✓ پرداخت امن</span></div></div>
+    <div class="hero-art"><img src="{% static 'shop/sanashop-hero.png' %}" alt="مجموعه‌ای از اکسسوری‌های ظریف و لوکس"><span class="floating-note"><b>انتخاب امروز</b><small>ظریف، ماندگار، متفاوت</small></span></div>
+  </div></section>
+  <section class="section" id="categories"><div class="container"><div class="section-head"><div><span class="eyebrow">برای هر سلیقه</span><h2>دسته‌بندی‌ها</h2></div><a href="{% url 'catalog' %}">دیدن همه محصولات ←</a></div>
+    <div class="category-grid">{% for category in categories %}<a class="category-card" href="{% url 'category' category.slug %}">{% if category.image %}<img src="{{ category.image.url }}" alt="{{ category.name }}">{% else %}<div class="category-icon">✦</div>{% endif %}<span>{{ category.name }}</span><small>{{ category.products.count }} محصول</small></a>{% empty %}<div class="empty-state">هنوز دسته‌ای ثبت نشده؛ از ربات تلگرام اولین دسته را بسازید.</div>{% endfor %}</div>
+  </div></section>
+  <section class="section featured-section"><div class="container"><div class="section-head"><div><span class="eyebrow">محبوب‌های این روزها</span><h2>انتخاب ویژه</h2></div><a href="{% url 'catalog' %}?sort=new">تازه‌ترین‌ها ←</a></div><div class="product-grid">{% for product in featured %}{% include 'shop/_product_card.html' %}{% empty %}<div class="empty-state">محصول ویژه‌ای ثبت نشده است. در ربات، محصول را روی «ویژه» قرار دهید.</div>{% endfor %}</div></div></section>
+  <section class="benefits"><div class="container benefits-grid"><div><b>ارسال سریع</b><span>بسته‌بندی امن و تحویل به پست</span></div><div><b>پرداخت انتخابی</b><span>درگاه آنلاین یا کارت به کارت</span></div><div><b>پشتیبانی واقعی</b><span>پیگیری سفارش تا رسیدن به دست شما</span></div><div><b>خرید مطمئن</b><span>زیرساخت آماده دریافت اینماد</span></div></div></section>
+</main>{% endblock %}
+
