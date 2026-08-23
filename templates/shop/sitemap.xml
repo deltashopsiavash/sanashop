@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url><loc>{{ request.scheme }}://{{ request.get_host }}{% url 'home' %}</loc></url>
+  <url><loc>{{ request.scheme }}://{{ request.get_host }}{% url 'catalog' %}</loc></url>
+  {% for product in products %}<url><loc>{{ request.scheme }}://{{ request.get_host }}{% url 'product_detail' product.slug %}</loc><lastmod>{{ product.updated_at|date:'Y-m-d' }}</lastmod></url>{% endfor %}
+</urlset>
