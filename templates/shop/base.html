@@ -1,0 +1,93 @@
+{% load static %}<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="{{ store_settings.primary_color|default:'#7b243f' }}">
+  <meta name="description" content="{% block description %}فروش آنلاین اکسسوری‌های خاص و باکیفیت از {{ store_settings.site_name }}{% endblock %}">
+  <title>{% block title %}{{ store_settings.site_name }}{% endblock %}</title>
+  <link rel="stylesheet" href="{% static 'shop/style.css' %}">
+  <style>:root{--brand:{{ store_settings.primary_color|default:'#7b243f' }}}</style>
+  {% block head %}{% endblock %}
+</head>
+<body>
+  {% if store_settings.announcement %}<div class="announcement">{{ store_settings.announcement }}</div>{% endif %}
+  <header class="site-header">
+    <div class="container header-row">
+      <button class="menu-toggle header-icon-btn" type="button" data-menu-toggle aria-label="نمایش منو" onclick="document.body.classList.toggle('menu-open')">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+      </button>
+      <a class="brand" href="{% url 'home' %}" aria-label="صفحه اصلی">
+        {% if store_settings.logo %}<img src="{{ store_settings.logo.url }}" alt="لوگوی {{ store_settings.site_name }}">{% else %}<span class="brand-mark">{{ store_settings.site_name|slice:':1' }}</span>{% endif %}
+        <span><strong>{{ store_settings.site_name }}</strong><small>{{ store_settings.tagline }}</small></span>
+      </a>
+      <form class="header-search" action="{% url 'catalog' %}" role="search">
+        <input type="search" name="q" value="{{ request.GET.q }}" placeholder="جست‌وجوی نام یا کد محصول…" aria-label="جست‌وجو">
+        <button aria-label="جست‌وجو"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg></button>
+      </form>
+      {% if request.user.is_authenticated %}
+      <a class="account-link header-action" href="{% url 'my_orders' %}">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c.8-5 3.4-7 8-7s7.2 2 8 7"/></svg><span>حساب من</span>
+      </a>
+      {% else %}
+      <button class="account-link header-action account-open-btn" type="button" data-account-open aria-label="ورود یا ثبت‌نام">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c.8-5 3.4-7 8-7s7.2 2 8 7"/></svg><span>ورود / عضویت</span>
+      </button>
+      {% endif %}
+      <a class="cart-link header-action" href="{% url 'cart' %}">
+        <span class="cart-icon-wrap"><svg viewBox="0 0 24 24"><path d="M3 4h2l2.1 10.2a2 2 0 0 0 2 1.6h7.8a2 2 0 0 0 2-1.6L20 8H7"/><circle cx="10" cy="20" r="1.3"/><circle cx="18" cy="20" r="1.3"/></svg>{% if cart_count %}<b>{{ cart_count }}</b>{% endif %}</span>
+        <span>سبد خرید</span>
+      </a>
+    </div>
+    <form class="mobile-search container" action="{% url 'catalog' %}" role="search"><input type="search" name="q" placeholder="جست‌وجوی نام یا کد محصول…"><button>جست‌وجو</button></form>
+    <nav class="nav"><div class="container nav-inner">
+      <a href="{% url 'catalog' %}">همه محصولات</a>
+      {% for cat in nav_categories %}<a href="{% url 'category' cat.slug %}">{{ cat.name }}</a>{% endfor %}
+      {% for page in footer_pages %}{% if page.footer_group == 'other' %}<a href="{% url 'content_page' page.slug %}">{{ page.title }}</a>{% endif %}{% endfor %}
+    </div></nav>
+  </header>
+  {% if messages %}<div class="container messages">{% for message in messages %}<div class="message {{ message.tags }}">{{ message }}</div>{% endfor %}</div>{% endif %}
+  {% block content %}{% endblock %}
+  <footer class="footer">
+    <div class="container footer-modern">
+      <div class="footer-brand-block">
+        <div class="footer-brand">{{ store_settings.site_name }}</div>
+        {% if store_settings.tagline %}<p>{{ store_settings.tagline }}</p>{% endif %}
+        <p class="muted">خرید امن، بسته‌بندی دقیق و پشتیبانی پاسخ‌گو.</p>
+      </div>
+      {% if footer_pages %}<div class="footer-page-links" aria-label="لینک‌های اطلاعات فروشگاه">{% for page in footer_pages %}{% if page.slug != 'buy-guide' and page.slug != 'contact' %}<a href="{% url 'content_page' page.slug %}">{{ page.title }}</a>{% endif %}{% endfor %}</div>{% endif %}
+      {% if social_links %}<div class="social-links" aria-label="شبکه‌های اجتماعی">{% for item in social_links %}<a href="{{ item.url }}" target="_blank" rel="noopener noreferrer" title="{{ item.title }}" aria-label="{{ item.title }}"><img src="{{ item.image.url }}" alt="{{ item.title }}"><span>{{ item.title }}</span></a>{% endfor %}</div>{% endif %}
+      <div class="trust" aria-label="نماد اعتماد">{% if store_settings.enamad_html %}{{ store_settings.enamad_html|safe }}{% else %}<div class="trust-placeholder trust-placeholder-empty" aria-hidden="true"></div>{% endif %}</div>
+    </div>
+    <div class="container copyright">© {% now "Y" %} {{ store_settings.site_name }} — تمامی حقوق محفوظ است.</div>
+  </footer>
+
+  <nav class="mobile-bottom-nav" aria-label="منوی موبایل">
+    <a href="{% url 'home' %}"><svg viewBox="0 0 24 24"><path d="m3 11 9-8 9 8v10h-6v-6H9v6H3z"/></svg><span>خانه</span></a>
+    <button type="button" data-menu-toggle onclick="document.body.classList.toggle('menu-open')"><svg viewBox="0 0 24 24"><path d="M4 6h6v6H4zM14 6h6v6h-6zM4 16h6v4H4zM14 16h6v4h-6z"/></svg><span>دسته‌ها</span></button>
+    <button onclick="document.body.classList.toggle('search-open');window.scrollTo({top:0,behavior:'smooth'})"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg><span>جستجو</span></button>
+    <a href="{% url 'cart' %}" class="mobile-cart"><span class="mobile-cart-icon"><svg viewBox="0 0 24 24"><path d="M3 4h2l2.1 10.2a2 2 0 0 0 2 1.6h7.8a2 2 0 0 0 2-1.6L20 8H7"/></svg>{% if cart_count %}<b>{{ cart_count }}</b>{% endif %}</span><span>سبد</span></a>
+    {% if request.user.is_authenticated %}
+    <a href="{% url 'my_orders' %}"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c.8-5 3.4-7 8-7s7.2 2 8 7"/></svg><span>حساب</span></a>
+    {% else %}
+    <button type="button" data-account-open aria-label="ورود یا ثبت‌نام"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c.8-5 3.4-7 8-7s7.2 2 8 7"/></svg><span>حساب</span></button>
+    {% endif %}
+  </nav>
+
+  {% if not request.user.is_authenticated %}
+  <dialog class="account-dialog" id="accountDialog" aria-labelledby="accountDialogTitle">
+    <button class="account-dialog-close" type="button" data-account-close aria-label="بستن">×</button>
+    <div class="account-dialog-card">
+      <h2 id="accountDialogTitle">ورود یا ثبت‌نام</h2>
+      <p>ایمیل خود را وارد کنید</p>
+      <form method="post" action="{% url 'login' %}" class="account-dialog-form">
+        {% csrf_token %}
+        <input type="hidden" name="next" value="{{ request.get_full_path }}">
+        <input type="email" name="email" autocomplete="email" inputmode="email" placeholder="example@gmail.com" aria-label="ایمیل" required>
+        <button class="btn btn-primary btn-block" type="submit">ادامه</button>
+      </form>
+    </div>
+  </dialog>
+  {% endif %}
+  <script src="{% static 'shop/main.js' %}" defer></script>
+</body></html>
