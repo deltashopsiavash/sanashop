@@ -1,9 +1,0 @@
-{% extends 'shop/base.html' %}
-{% block content %}<main class="section"><article class="container prose">
-{% if page == 'about' %}<span class="eyebrow">داستان ما</span><h1>درباره {{ store_settings.site_name }}</h1><p>{{ store_settings.site_name }} با هدف ساده‌کردن انتخاب اکسسوری‌های باکیفیت شکل گرفته است. ما تلاش می‌کنیم اطلاعات هر محصول شفاف، عکس‌ها واقعی و تجربه خرید امن و قابل پیگیری باشد.</p>
-{% elif page == 'contact' %}<span class="eyebrow">کنار شما هستیم</span><h1>تماس با ما</h1><p>برای پرسش درباره محصول یا پیگیری سفارش از راه‌های زیر با ما در تماس باشید.</p><ul><li>تلفن: {{ store_settings.phone|default:'پس از راه‌اندازی درج می‌شود' }}</li><li>آدرس: {{ store_settings.address|default:'پس از راه‌اندازی درج می‌شود' }}</li></ul>
-{% elif page == 'terms' %}<h1>قوانین و شرایط خرید</h1>{{ store_settings.terms_text|linebreaks|default:'ثبت سفارش به معنی پذیرش مشخصات محصول، مبلغ، روش ارسال و قوانین جاری فروشگاه است. اطلاعات دقیق‌تر پیش از شروع فروش در این بخش تکمیل می‌شود.' }}
-{% elif page == 'returns' %}<h1>رویه بازگشت کالا</h1>{{ store_settings.return_policy|linebreaks|default:'در صورت وجود ایراد یا مغایرت، مشتری باید در مهلت اعلام‌شده توسط فروشگاه و پیش از استفاده از کالا با پشتیبانی تماس بگیرد. شرایط بهداشتی برخی اکسسوری‌ها ممکن است امکان مرجوعی را محدود کند.' }}
-{% else %}<h1>حریم خصوصی</h1><p>اطلاعات مشتری فقط برای ثبت، ارسال و پیگیری سفارش استفاده می‌شود و بدون الزام قانونی یا نیاز عملیاتی در اختیار اشخاص نامرتبط قرار نمی‌گیرد.</p>{% endif %}
-</article></main>{% endblock %}
-
