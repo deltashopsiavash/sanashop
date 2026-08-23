@@ -13,8 +13,9 @@ if ! grep -qE 'Ubuntu 24\.04|Ubuntu 24' /etc/os-release 2>/dev/null; then
 fi
 
 read_value() {
-  local key="$1" prompt="$2" default="${3:-}" secret="${4:-0}" value="${!key:-}"
-  if [[ -z "$value" && -r /dev/tty ]]; then
+  local key="$1" prompt="$2" default="${3:-}" secret="${4:-0}" value
+  value="${!key-}"
+  if [[ -z "$value" ]] && tty -s 2>/dev/null < /dev/tty; then
     if [[ "$secret" == "1" ]]; then read -r -s -p "$prompt" value < /dev/tty; echo > /dev/tty; else read -r -p "$prompt" value < /dev/tty; fi
   fi
   value="${value:-$default}"
