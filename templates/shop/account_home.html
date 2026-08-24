@@ -1,0 +1,6 @@
+{% extends 'shop/base.html' %}{% block title %}حساب من{% endblock %}
+{% block content %}<main class="section"><div class="container narrow"><div class="auth-card"><h1>حساب من</h1>
+<a class="btn btn-primary btn-block" href="{% url 'account_profile' %}">👤 مشخصات حساب</a>
+<a class="btn btn-secondary btn-block" href="{% url 'my_orders' %}">🛒 سفارشات</a>
+<form method="post" action="{% url 'logout' %}">{% csrf_token %}<button class="btn btn-secondary btn-block">خروج</button></form>
+</div></div></main>{% endblock %}

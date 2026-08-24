@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+APP_DIR="${SANASHOP_DIR:-/opt/sanashop}"
+cd "$APP_DIR"
+
+case "${1:-}" in
+  update)
+    git fetch origin main
+    OLD_COMMIT="$(git rev-parse HEAD)"
+    git reset --hard origin/main
+    printf '%s\n' "$OLD_COMMIT" > .last-version
+    docker compose build --pull
+    docker compose up -d --remove-orphans
+    docker compose exec -T web python manage.py migrate --noinput
+    docker compose exec -T web python manage.py collectstatic --noinput
+    docker compose ps
+    echo "آپدیت کامل شد؛ دیتابیس و تصاویر حفظ شدند."
+    ;;
+  backup)
+    mkdir -p backups
+    STAMP="$(date +%Y%m%d-%H%M%S)"
+    set -a; source .env; set +a
+    docker compose exec -T db pg_dump -U "$POSTGRES_USER" "$POSTGRES_DB" | gzip > "backups/db-$STAMP.sql.gz"
+    docker run --rm -v sanashop_media_data:/data:ro -v "$APP_DIR/backups:/backup" alpine tar czf "/backup/media-$STAMP.tar.gz" -C /data .
+    cp .env "backups/env-$STAMP"
+    chmod 600 "backups/env-$STAMP"
+    echo "نسخه پشتیبان در $APP_DIR/backups ساخته شد."
+    ;;
+  rollback)
+    [[ -f .last-version ]] || { echo "نسخه قبلی ثبت نشده است."; exit 1; }
+    git reset --hard "$(cat .last-version)"
+    docker compose up -d --build --remove-orphans
+    echo "کد به نسخه قبلی برگشت."
+    ;;
+  logs) docker compose logs -f --tail=200 "${2:-web}" ;;
+  status) docker compose ps ;;
+  restart) docker compose restart ;;
+  *) echo "کاربرد: sanashop {update|backup|rollback|logs [web|bot|backup]|status|restart}"; exit 1 ;;
+esac
