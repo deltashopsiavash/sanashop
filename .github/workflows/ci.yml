@@ -1,0 +1,30 @@
+name: CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - run: python manage.py check --deploy
+        env:
+          DJANGO_SECRET_KEY: ci-only-secret
+          DJANGO_DEBUG: "0"
+          DJANGO_ALLOWED_HOSTS: example.com
+          CSRF_TRUSTED_ORIGINS: https://example.com
+      - run: python manage.py test
+        env:
+          DJANGO_SECRET_KEY: ci-only-secret
+          DJANGO_DEBUG: "1"
+      - name: Create CI env file
+        run: |
+          cp .env.example .env
+          sed -i "s#shop.example.com#example.com#g; s#owner@example.com#owner@example.com#g; s#change-me#test#g" .env
+      - run: docker compose config --quiet
