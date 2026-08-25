@@ -26,6 +26,7 @@ read_value DOMAIN "دامنه‌ای که DNS آن به این سرور وصل �
 read_value ACME_EMAIL "ایمیل برای گواهی SSL: "
 read_value TELEGRAM_BOT_TOKEN "توکن ربات تلگرام: " "" 1
 read_value TELEGRAM_ADMIN_IDS "آیدی عددی مدیر تلگرام: "
+read_value TELEGRAM_PROXY_URL "پروکسی HTTP تلگرام (اختیاری، مثال http://user:pass@IP:3128): "
 read_value DEFAULT_SITE_NAME "نام اولیه فروشگاه [سنا]: " "سنا"
 read_value DEFAULT_CARD_NUMBER "شماره کارت (می‌توان بعداً از ربات تغییر داد): "
 read_value DEFAULT_CARD_OWNER "نام صاحب کارت: "
@@ -77,6 +78,7 @@ POSTGRES_PASSWORD=$DB_PASSWORD
 DATABASE_URL=postgresql://sanashop:$DB_PASSWORD@db:5432/sanashop
 TELEGRAM_BOT_TOKEN=$TELEGRAM_BOT_TOKEN
 TELEGRAM_ADMIN_IDS=$TELEGRAM_ADMIN_IDS
+TELEGRAM_PROXY_URL=$TELEGRAM_PROXY_URL
 ZARINPAL_MERCHANT_ID=$ZARINPAL_MERCHANT_ID
 ZARINPAL_SANDBOX=0
 DEFAULT_SITE_NAME=$DEFAULT_SITE_NAME
