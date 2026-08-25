@@ -1,5 +1,0 @@
-{% extends 'shop/base.html' %}{% block title %}مشخصات حساب{% endblock %}
-{% block content %}<main class="section"><div class="container narrow"><div class="auth-card">
-<h1>مشخصات حساب</h1><p>نام: {{ user_profile.first_name|default:'-' }}</p><p>ایمیل: {{ user_profile.email }}</p>
-<a class="btn btn-primary btn-block" href="{% url 'my_orders' %}">مشاهده سفارشات</a>
-</div></div></main>{% endblock %}
