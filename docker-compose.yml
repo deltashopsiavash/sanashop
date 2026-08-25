@@ -34,6 +34,9 @@ services:
     build: .
     restart: unless-stopped
     env_file: .env
+    environment:
+      HTTPS_PROXY: ${TELEGRAM_PROXY_URL:-}
+      https_proxy: ${TELEGRAM_PROXY_URL:-}
     command: ["python", "bot.py"]
     depends_on:
       web:
@@ -46,6 +49,9 @@ services:
     build: .
     restart: unless-stopped
     env_file: .env
+    environment:
+      HTTPS_PROXY: ${TELEGRAM_PROXY_URL:-}
+      https_proxy: ${TELEGRAM_PROXY_URL:-}
     command: ["python", "backup_worker.py"]
     depends_on:
       web:
