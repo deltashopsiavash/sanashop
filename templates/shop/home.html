@@ -1,0 +1,26 @@
+{% extends 'shop/base.html' %}{% load static %}
+{% block title %}{{ store_settings.site_name }} | فروشگاه اکسسوری{% endblock %}
+{% block content %}
+<main>
+  <section class="hero-slider" data-slider>
+    <div class="hero-track">
+      {% for slide in hero_slides %}<article class="hero-slide {% if forloop.first %}is-active{% endif %}" data-slide>
+        <picture>{% if slide.mobile_image %}<source media="(max-width:600px)" srcset="{{ slide.mobile_image.url }}">{% endif %}<img src="{{ slide.image.url }}" alt="{{ slide.title|default:store_settings.site_name }}"></picture>
+        <div class="hero-overlay"></div><div class="container hero-slide-copy"><span class="eyebrow light">انتخاب ویژه {{ store_settings.site_name }}</span>{% if slide.title %}<h1>{{ slide.title }}</h1>{% endif %}{% if slide.subtitle %}<p>{{ slide.subtitle }}</p>{% endif %}{% if slide.button_text %}<a class="btn hero-btn" href="{{ slide.link|default:'/products/' }}">{{ slide.button_text }}</a>{% endif %}</div>
+      </article>{% empty %}<article class="hero-slide is-active default-hero" data-slide><img src="{% static 'shop/sanashop-hero.png' %}" alt="اکسسوری"><div class="hero-overlay"></div><div class="container hero-slide-copy"><span class="eyebrow light">کالکشن تازه رسیده</span><h1>استایل تو، امضای توست.</h1><p>اکسسوری‌هایی برای جزئیاتی که حال استایل را عوض می‌کنند.</p><a class="btn hero-btn" href="{% url 'catalog' %}">مشاهده محصولات</a></div></article>{% endfor %}
+    </div>
+    {% if hero_slides|length > 1 %}<button class="slider-arrow prev" data-prev aria-label="قبلی">‹</button><button class="slider-arrow next" data-next aria-label="بعدی">›</button><div class="slider-dots">{% for slide in hero_slides %}<button data-dot="{{ forloop.counter0 }}" class="{% if forloop.first %}active{% endif %}" aria-label="اسلاید {{ forloop.counter }}"></button>{% endfor %}</div>{% endif %}
+  </section>
+
+  <section class="section category-section" id="categories"><div class="container"><div class="section-head"><div><span class="eyebrow">انتخاب سریع</span><h2>دسته‌بندی‌ها</h2></div><a href="{% url 'catalog' %}">همه محصولات ←</a></div>
+    <div class="category-scroll">{% for category in categories %}<a class="category-pill-card" href="{% url 'category' category.slug %}">{% if category.image %}<img src="{{ category.image.url }}" alt="{{ category.name }}">{% else %}<div class="category-icon">✦</div>{% endif %}<strong>{{ category.name }}</strong><small>{{ category.active_product_count }} محصول</small></a>{% empty %}<div class="empty-state">هنوز دسته‌ای ثبت نشده است.</div>{% endfor %}</div>
+  </div></section>
+
+  {% if amazing %}<section class="section amazing-section"><div class="container amazing-shell"><div class="amazing-head"><div><span>٪</span><strong>پیشنهادهای شگفت‌انگیز</strong><small>انتخاب‌های ویژه با قیمت جذاب</small></div><a href="{% url 'catalog' %}">مشاهده همه</a></div><div class="horizontal-products">{% for product in amazing %}<div class="horizontal-product-item">{% include 'shop/_product_card.html' %}</div>{% endfor %}</div></div></section>{% endif %}
+
+  <section class="section"><div class="container"><div class="section-head"><div><span class="eyebrow">تازه رسیده</span><h2>جدیدترین محصولات</h2></div><a href="{% url 'catalog' %}?sort=new">مشاهده همه ←</a></div><div class="product-grid">{% for product in newest %}{% include 'shop/_product_card.html' %}{% empty %}<div class="empty-state">هنوز محصولی ثبت نشده است.</div>{% endfor %}</div></div></section>
+
+  {% if featured %}<section class="section featured-section"><div class="container"><div class="section-head"><div><span class="eyebrow">محبوب‌های این روزها</span><h2>انتخاب ویژه</h2></div></div><div class="product-grid">{% for product in featured %}{% include 'shop/_product_card.html' %}{% endfor %}</div></div></section>{% endif %}
+
+  <section class="benefits"><div class="container benefits-grid"><div><b>ارسال سریع</b><span>بسته‌بندی امن و تحویل به پست</span></div><div><b>پرداخت انتخابی</b><span>درگاه آنلاین یا کارت به کارت</span></div><div><b>پشتیبانی واقعی</b><span>پیگیری سفارش تا رسیدن به دست شما</span></div><div><b>خرید مطمئن</b><span>زیرساخت آماده دریافت اینماد</span></div></div></section>
+</main>{% endblock %}
