@@ -13,8 +13,12 @@ case "${1:-}" in
     docker compose up -d --remove-orphans db web caddy
     docker compose exec -T web python manage.py migrate --noinput
     docker compose exec -T web python manage.py collectstatic --noinput
+    # Caddyfile is bind-mounted; Compose may not recreate/reload Caddy when only
+    # this file changes. Validate and force a restart so API routing changes take effect.
+    docker compose exec -T caddy caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
+    docker compose restart caddy
     docker compose ps
-    echo "آپدیت سایت کامل شد؛ دیتابیس و تصاویر حفظ شدند."
+    echo "آپدیت سایت کامل شد؛ دیتابیس و تصاویر حفظ شدند و Caddy با کانفیگ جدید restart شد."
     ;;
   backup)
     mkdir -p backups
@@ -30,6 +34,7 @@ case "${1:-}" in
     [[ -f .last-version ]] || { echo "نسخه قبلی ثبت نشده است."; exit 1; }
     git reset --hard "$(cat .last-version)"
     docker compose up -d --build --remove-orphans db web caddy
+    docker compose restart caddy
     echo "کد سایت به نسخه قبلی برگشت."
     ;;
   bot-key)
