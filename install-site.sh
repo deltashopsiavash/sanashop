@@ -27,11 +27,7 @@ read_value() {
   local key="$1" prompt="$2" default="${3:-}" secret="${4:-0}" current value
   current="${!key:-}"
   value="$current"
-  if [[ -z "$value" ]]; then
-    if [[ ! -r /dev/tty ]]; then
-      echo "ترمینال تعاملی در دسترس نیست و مقدار $key تنظیم نشده است."
-      exit 1
-    fi
+  if [[ -z "$value" && -r /dev/tty ]]; then
     if [[ "$secret" == "1" ]]; then
       read -r -s -p "$prompt" value < /dev/tty
       echo > /dev/tty
