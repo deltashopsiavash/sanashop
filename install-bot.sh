@@ -75,7 +75,7 @@ Wants=network-online.target
 Type=simple
 WorkingDirectory=$APP_DIR
 EnvironmentFile=/etc/sanashop-bot.env
-ExecStart=$APP_DIR/.venv/bin/python $APP_DIR/external_bot.py
+ExecStart=$APP_DIR/.venv/bin/python $APP_DIR/external_bot_plus.py
 Restart=always
 RestartSec=3
 User=root
@@ -98,6 +98,7 @@ PUBLIC_IP="$(curl -4 -fsS --max-time 8 https://api.ipify.org 2>/dev/null || true
 
 echo
 echo "✅ ربات خارجی نصب و اتصال Telegram تست شد."
+echo "✅ اعلان سفارش/رسید هر سایت از API همان سایت دریافت می‌شود."
 if [[ -n "$PUBLIC_IP" ]]; then
   echo "🌍 IP عمومی این سرور: $PUBLIC_IP"
   echo "این IP را موقع نصب هر سایت ایران در قسمت «IP عمومی سرور خارجی ربات» وارد کن."
