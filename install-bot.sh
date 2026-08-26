@@ -2,7 +2,7 @@
 set -Eeuo pipefail
 
 if [[ ${EUID} -ne 0 ]]; then
-  echo "Run with sudo/root"
+  echo "این دستور باید با sudo/root اجرا شود."
   exit 1
 fi
 
@@ -15,7 +15,7 @@ read_tty() {
   local prompt="$1" var_name="$2" secret="${3:-0}" value="${!2:-}"
   if [[ -z "$value" ]]; then
     if [[ ! -r /dev/tty ]]; then
-      echo "Interactive terminal is required."
+      echo "ترمینال تعاملی در دسترس نیست."
       exit 1
     fi
     if [[ "$secret" == "1" ]]; then
@@ -32,17 +32,22 @@ read_tty "Telegram bot token: " TELEGRAM_BOT_TOKEN 1
 read_tty "Owner numeric Telegram ID: " TELEGRAM_OWNER_ID
 
 if [[ -z "$TELEGRAM_BOT_TOKEN" || -z "$TELEGRAM_OWNER_ID" ]]; then
-  echo "Token and owner ID are required"
+  echo "توکن و آیدی مالک الزامی هستند."
   exit 1
 fi
 if [[ ! "$TELEGRAM_OWNER_ID" =~ ^[0-9]+$ ]]; then
-  echo "Owner Telegram ID must be numeric"
+  echo "آیدی مالک باید فقط عدد باشد."
   exit 1
 fi
 
 export DEBIAN_FRONTEND=noninteractive
 apt-get update
-apt-get install -y ca-certificates git python3 python3-venv
+apt-get install -y ca-certificates curl git python3 python3-venv
+
+if ! curl -fsS --max-time 15 "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/getMe" | grep -q '"ok":true'; then
+  echo "❌ توکن ربات معتبر نیست یا این سرور به Telegram API دسترسی ندارد."
+  exit 1
+fi
 
 systemctl disable --now sanashop-bot 2>/dev/null || true
 rm -rf "$APP_DIR"
@@ -82,9 +87,19 @@ EOF
 systemctl daemon-reload
 systemctl enable --now sanashop-bot
 sleep 2
-systemctl --no-pager --full status sanashop-bot || true
+if ! systemctl is-active --quiet sanashop-bot; then
+  echo "❌ سرویس ربات بالا نیامد."
+  journalctl -u sanashop-bot -n 100 --no-pager
+  exit 1
+fi
+
+PUBLIC_IP="$(curl -4 -fsS --max-time 8 https://api.ipify.org 2>/dev/null || true)"
 
 echo
-echo "✅ Bot installed."
-echo "Status: systemctl status sanashop-bot"
-echo "Logs:   journalctl -u sanashop-bot -f"
+echo "✅ ربات خارجی نصب و اتصال Telegram تست شد."
+if [[ -n "$PUBLIC_IP" ]]; then
+  echo "🌍 IP عمومی این سرور: $PUBLIC_IP"
+  echo "این IP را موقع نصب هر سایت ایران در قسمت «IP عمومی سرور خارجی ربات» وارد کن."
+fi
+echo "وضعیت: systemctl status sanashop-bot"
+echo "لاگ:    journalctl -u sanashop-bot -f"
