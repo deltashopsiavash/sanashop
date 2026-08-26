@@ -2,6 +2,19 @@
 {% block title %}{{ store_settings.site_name }} | فروشگاه اکسسوری{% endblock %}
 {% block content %}
 <main>
+  {% if active_stories %}
+  <section class="story-strip" aria-label="معرفی محصولات">
+    {% for story in active_stories %}
+      <button class="story-item" type="button" data-story-open data-story-title="{{ story.title|escape }}" data-story-type="{{ story.media_type }}" data-story-src="{{ story.media.url }}" data-story-target="{{ story.target_url|escape }}" data-story-remaining="{{ story.remaining_seconds }}">
+        <span class="story-ring"><span class="story-ring-inner">
+          {% if story.media_type == 'video' %}<video src="{{ story.media.url }}" muted playsinline preload="metadata"></video>{% else %}<img src="{{ story.media.url }}" alt="{{ story.title }}" loading="lazy">{% endif %}
+        </span></span>
+        <span class="story-title">{{ story.title }}</span>
+      </button>
+    {% endfor %}
+  </section>
+  {% endif %}
+
   {% if hero_slides %}
   <section class="container home-banner-carousel {% if hero_slides|length == 1 %}single{% endif %}" id="home-banner-carousel" data-autoplay-ms="4500" aria-label="بنرهای فروشگاه">
     <div class="home-banner-viewport"><div class="home-banner-track" id="home-banner-track">
@@ -27,4 +40,18 @@
 
   <section class="benefits"><div class="container benefits-grid"><div><b>ارسال سریع</b><span>بسته‌بندی امن و تحویل به پست</span></div><div><b>پرداخت انتخابی</b><span>درگاه آنلاین یا کارت به کارت</span></div><div><b>پشتیبانی واقعی</b><span>پیگیری سفارش تا رسیدن به دست شما</span></div><div><b>خرید مطمئن</b><span>زیرساخت آماده دریافت اینماد</span></div></div></section>
 </main>
+
+{% if active_stories %}
+<dialog class="story-modal" id="storyDialog">
+  <div class="story-modal-shell">
+    <button class="story-modal-close" type="button" data-story-close aria-label="بستن">×</button>
+    <div class="story-modal-media" data-story-media-box></div>
+    <div class="story-modal-bottom">
+      <strong data-story-title></strong>
+      <a class="story-buy-btn" href="#" data-story-buy>خرید این محصول</a>
+      <span class="story-expire" data-story-expire></span>
+    </div>
+  </div>
+</dialog>
+{% endif %}
 {% endblock %}
