@@ -76,8 +76,6 @@ export DEBIAN_FRONTEND=noninteractive
 apt-get update
 apt-get install -y ca-certificates curl git openssl
 
-# عمداً هیچ بررسی یا مقایسه‌ای بین DNS دامنه و IP عمومی سرور انجام نمی‌شود.
-# دامنه می‌تواند پشت CDN/Proxy/DNS واسط باشد. Caddy در زمان اجرا وضعیت واقعی HTTPS را مدیریت می‌کند.
 echo "✅ اطلاعات دامنه دریافت شد؛ بررسی اجباری A/AAAA انجام نمی‌شود."
 
 if ! command -v docker >/dev/null 2>&1; then
@@ -134,7 +132,7 @@ chmod 600 .env
 ln -sf "$APP_DIR/scripts/sanashop" /usr/local/bin/sanashop
 
 echo "در حال بررسی تنظیم Caddy..."
-docker compose run --rm --no-deps caddy caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
+docker compose run --rm --no-deps -T caddy caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile </dev/null
 
 echo "در حال ساخت و اجرای سایت..."
 docker compose up -d --build db web caddy
