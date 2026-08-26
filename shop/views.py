@@ -6,13 +6,26 @@ from django.db.models import Q
 from django.http import Http404, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
-from django.utils.http import url_has_allowed_host_and_scheme
 from django.utils import timezone
+from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_POST
 
 from .forms import CheckoutForm, EmailLookupForm, PasswordOnlyForm, ReceiptForm, RegistrationForm
+from .iran_locations import province_city_map
 from .models import Category, ContentPage, EmailVerificationToken, HeroSlide, Order, PaymentReceipt, Product, SiteSetting
-from .services import cart_rows, create_order, discount_from_session, send_receipt_to_telegram, send_telegram_text, set_order_status, zarinpal_request, zarinpal_verify
+from .services import (
+    cart_rows,
+    create_order,
+    discount_from_session,
+    expire_reservations,
+    order_event_payload,
+    queue_bot_event,
+    release_order_stock,
+    send_receipt_to_telegram,
+    set_order_status,
+    zarinpal_request,
+    zarinpal_verify,
+)
 
 User = get_user_model()
 
@@ -92,6 +105,7 @@ def register(request):
             return render(request, "registration/verification_sent.html", {"email": user.email})
     return render(request, "registration/register.html", {"form": form, "registration_email": email})
 
+
 def verify_email(request, token):
     record = get_object_or_404(EmailVerificationToken.objects.select_related("user"), token=token)
     if record.expires_at < timezone.now():
@@ -122,20 +136,30 @@ def account_profile(request):
 
 @login_required
 def my_orders(request):
+    expire_reservations(limit=50)
     orders = request.user.orders.prefetch_related("items", "status_events").all()
     return render(request, "shop/my_orders.html", {"orders": orders})
 
 
 def home(request):
+    expire_reservations(limit=30)
     now = timezone.now()
-    amazing = Product.objects.filter(is_active=True, is_amazing=True).filter(Q(amazing_until__isnull=True) | Q(amazing_until__gt=now)).select_related("category")[:10]
-    return render(request, "shop/home.html", {
-        "featured": Product.objects.filter(is_active=True, is_featured=True).select_related("category")[:8],
-        "newest": Product.objects.filter(is_active=True).select_related("category").order_by("-created_at")[:8],
-        "amazing": amazing,
-        "categories": Category.objects.filter(is_active=True, parent__isnull=True)[:8],
-        "hero_slides": HeroSlide.objects.filter(is_active=True)[:8],
-    })
+    amazing = (
+        Product.objects.filter(is_active=True, is_amazing=True)
+        .filter(Q(amazing_until__isnull=True) | Q(amazing_until__gt=now))
+        .select_related("category")[:10]
+    )
+    return render(
+        request,
+        "shop/home.html",
+        {
+            "featured": Product.objects.filter(is_active=True, is_featured=True).select_related("category")[:8],
+            "newest": Product.objects.filter(is_active=True).select_related("category").order_by("-created_at")[:8],
+            "amazing": amazing,
+            "categories": Category.objects.filter(is_active=True, parent__isnull=True)[:12],
+            "hero_slides": HeroSlide.objects.filter(is_active=True)[:8],
+        },
+    )
 
 
 def safe_next(request, fallback):
@@ -163,29 +187,84 @@ def product_detail(request, slug):
     return render(request, "shop/product.html", {"product": product, "related": related})
 
 
-def cart(request):
+def _cart_context(request):
     rows, subtotal = cart_rows(request)
     store = SiteSetting.load()
-    shipping = 0 if subtotal and subtotal >= store.free_shipping_threshold else store.shipping_fee
+    shipping = store.shipping_for(subtotal) if rows else 0
     discount, discount_amount = discount_from_session(request, subtotal)
     total = max(0, subtotal + shipping - discount_amount) if rows else 0
-    return render(request, "shop/cart.html", {"rows": rows, "subtotal": subtotal, "shipping": shipping, "discount": discount, "discount_amount": discount_amount, "total": total})
+    threshold = int(store.free_shipping_threshold or 0)
+    remaining = max(0, threshold - subtotal) if threshold else 0
+    progress = 100 if threshold and subtotal >= threshold else (min(100, int(subtotal * 100 / threshold)) if threshold else 0)
+    return {
+        "rows": rows,
+        "subtotal": subtotal,
+        "shipping": shipping,
+        "discount": discount,
+        "discount_amount": discount_amount,
+        "total": total,
+        "free_shipping_threshold": threshold,
+        "remaining_to_free_shipping": remaining,
+        "free_shipping_progress": progress,
+        "free_shipping": bool(rows and threshold and subtotal >= threshold),
+    }
+
+
+def _wants_json(request):
+    return request.headers.get("x-requested-with") == "XMLHttpRequest" or "application/json" in request.headers.get("accept", "")
+
+
+def _cart_json(request):
+    data = _cart_context(request)
+    return {
+        "count": sum(row["quantity"] for row in data["rows"]),
+        "subtotal": data["subtotal"],
+        "shipping": data["shipping"],
+        "discount_amount": data["discount_amount"],
+        "total": data["total"],
+        "free_shipping_threshold": data["free_shipping_threshold"],
+        "remaining_to_free_shipping": data["remaining_to_free_shipping"],
+        "free_shipping_progress": data["free_shipping_progress"],
+        "free_shipping": data["free_shipping"],
+        "lines": [
+            {
+                "id": row["product"].id,
+                "quantity": row["quantity"],
+                "stock": row["product"].available_stock,
+                "total": row["total"],
+            }
+            for row in data["rows"]
+        ],
+    }
+
+
+def cart(request):
+    return render(request, "shop/cart.html", _cart_context(request))
+
+
+def cart_data(request):
+    return JsonResponse({"ok": True, **_cart_json(request)})
 
 
 @require_POST
 def cart_add(request, product_id):
     product = get_object_or_404(Product, pk=product_id, is_active=True)
     if not product.available:
+        if _wants_json(request):
+            return JsonResponse({"ok": False, "error": "این محصول در حال حاضر موجود نیست."}, status=400)
         messages.warning(request, "این محصول در حال حاضر موجود نیست.")
         return redirect(safe_next(request, reverse("catalog")))
     try:
         requested = int(request.POST.get("quantity", 1))
     except (TypeError, ValueError):
         requested = 1
-    qty = min(max(1, requested), product.stock)
+    qty = min(max(1, requested), product.available_stock)
     data = request.session.get("cart", {})
-    data[str(product.pk)] = min(int(data.get(str(product.pk), 0)) + qty, product.stock)
+    data[str(product.pk)] = min(int(data.get(str(product.pk), 0)) + qty, product.available_stock)
     request.session["cart"] = data
+    request.session.modified = True
+    if _wants_json(request):
+        return JsonResponse({"ok": True, **_cart_json(request)})
     messages.success(request, f"«{product.name}» به سبد خرید اضافه شد.")
     return redirect(safe_next(request, reverse("cart")))
 
@@ -195,15 +274,18 @@ def cart_update(request, product_id):
     data = request.session.get("cart", {})
     product = get_object_or_404(Product, pk=product_id)
     try:
-        requested = int(request.POST.get("quantity", 0))
+        requested = int(request.POST.get("quantity", request.POST.get("qty", 0)))
     except (TypeError, ValueError):
         requested = 0
-    qty = max(0, min(requested, product.stock))
+    qty = max(0, min(requested, product.available_stock))
     if qty:
         data[str(product_id)] = qty
     else:
         data.pop(str(product_id), None)
     request.session["cart"] = data
+    request.session.modified = True
+    if _wants_json(request):
+        return JsonResponse({"ok": True, **_cart_json(request)})
     return redirect("cart")
 
 
@@ -215,6 +297,7 @@ def discount_apply(request):
         return redirect("cart")
     code = (request.POST.get("discount_code") or "").strip().upper()
     from .models import DiscountCode
+
     discount = DiscountCode.objects.filter(code__iexact=code).first()
     if discount and discount.is_valid_for(subtotal):
         request.session["discount_code"] = discount.code
@@ -228,54 +311,98 @@ def discount_apply(request):
 @require_POST
 def discount_remove(request):
     request.session.pop("discount_code", None)
+    request.session.modified = True
     messages.success(request, "کد تخفیف حذف شد.")
     return redirect("cart")
 
 
 @login_required
 def checkout(request):
-    rows, subtotal = cart_rows(request)
+    totals = _cart_context(request)
+    rows, subtotal = totals["rows"], totals["subtotal"]
     if not rows:
         messages.warning(request, "سبد خرید شما خالی است.")
         return redirect("catalog")
     store = SiteSetting.load()
     initial = {"full_name": request.user.first_name, "email": request.user.email}
     form = CheckoutForm(request.POST or None, store_settings=store, initial=initial)
-    shipping = 0 if subtotal >= store.free_shipping_threshold else store.shipping_fee
-    discount, discount_amount = discount_from_session(request, subtotal)
-    total = max(0, subtotal + shipping - discount_amount)
     if request.method == "POST" and form.is_valid():
         try:
-            order = create_order(form, rows, subtotal, store, customer=request.user, discount=discount, discount_amount=discount_amount)
+            order = create_order(
+                form,
+                rows,
+                subtotal,
+                store,
+                customer=request.user,
+                discount=totals["discount"],
+                discount_amount=totals["discount_amount"],
+            )
         except ValueError as exc:
             messages.error(request, str(exc))
-        else:
-            request.session["cart"] = {}
-            request.session.pop("discount_code", None)
-            request.session["order_code"] = order.code
-            send_telegram_text(f"🛒 سفارش جدید\nکد: <b>{order.code}</b>\nمشتری: {order.full_name}\nمبلغ: {order.total:,} تومان\nپرداخت: {order.get_payment_method_display()}")
-            if order.payment_method == "zarinpal":
-                try:
-                    callback = request.build_absolute_uri(reverse("zarinpal_callback"))
-                    return redirect(zarinpal_request(order, callback))
-                except Exception:
-                    messages.error(request, "اتصال به درگاه موقتاً ممکن نیست. سفارش شما ذخیره شده است.")
-            return redirect("order_status", code=order.code)
-    return render(request, "shop/checkout.html", {"form": form, "rows": rows, "subtotal": subtotal, "shipping": shipping, "discount": discount, "discount_amount": discount_amount, "total": total})
+            return redirect("cart")
+        request.session["cart"] = {}
+        request.session.pop("discount_code", None)
+        request.session["order_code"] = order.code
+        request.session.modified = True
+        if order.payment_method == "zarinpal":
+            try:
+                callback = request.build_absolute_uri(reverse("zarinpal_callback"))
+                return redirect(zarinpal_request(order, callback))
+            except Exception as exc:
+                order.admin_note = f"خطای شروع زرین‌پال: {exc}"
+                order.save(update_fields=["admin_note", "updated_at"])
+                release_order_stock(order)
+                order.status = "cancelled"
+                order.save(update_fields=["status", "updated_at"])
+                queue_bot_event("payment_failed", order_event_payload(order))
+                messages.error(request, "اتصال به درگاه ممکن نشد و رزرو سفارش آزاد شد. دوباره سفارش ثبت کنید.")
+                return redirect("order_status", code=order.code)
+        return redirect("card_payment", code=order.code)
+    return render(request, "shop/checkout.html", {**totals, "form": form, "locations": province_city_map()})
+
+
+def _can_view_order(request, order):
+    return (
+        (request.user.is_authenticated and order.customer_id == request.user.id)
+        or request.session.get("order_code") == order.code
+        or request.user.is_staff
+    )
+
+
+def card_payment(request, code):
+    expire_reservations(limit=50)
+    order = get_object_or_404(Order.objects.prefetch_related("items"), code=code, payment_method="card")
+    if not _can_view_order(request, order):
+        raise Http404
+    if order.stock_committed or order.status in ("paid", "processing", "shipped", "delivered"):
+        return redirect("order_status", code=order.code)
+    if not order.reservation_active:
+        messages.error(request, "مهلت رزرو این فاکتور تمام شده است. یک سفارش جدید ثبت کنید.")
+        return redirect("order_status", code=order.code)
+
+    receipt_form = ReceiptForm(request.POST or None, request.FILES or None)
+    if request.method == "POST" and receipt_form.is_valid():
+        receipt, _ = PaymentReceipt.objects.update_or_create(
+            order=order,
+            defaults={"image": receipt_form.cleaned_data["image"], "status": "pending", "reviewed_at": None},
+        )
+        order.receipt_rejection_reason = ""
+        order.save(update_fields=["receipt_rejection_reason", "updated_at"])
+        set_order_status(order, "review", "رسید کارت‌به‌کارت برای بررسی ارسال شد")
+        send_receipt_to_telegram(receipt)
+        messages.success(request, "رسید با موفقیت ارسال شد و در انتظار بررسی مدیر است.")
+        return redirect("order_status", code=order.code)
+    return render(request, "shop/card_payment.html", {"order": order, "receipt_form": receipt_form, "store": SiteSetting.load()})
 
 
 def order_status(request, code):
+    expire_reservations(limit=50)
     order = get_object_or_404(Order.objects.prefetch_related("items", "status_events"), code=code)
-    owns_order = request.user.is_authenticated and order.customer_id == request.user.id
-    if not owns_order and request.session.get("order_code") != code and not request.user.is_staff:
+    if not _can_view_order(request, order):
         raise Http404
-    receipt_form = ReceiptForm(request.POST or None, request.FILES or None)
-    if request.method == "POST" and order.payment_method == "card" and receipt_form.is_valid():
-        receipt, _ = PaymentReceipt.objects.update_or_create(order=order, defaults={"image": receipt_form.cleaned_data["image"], "status": "pending"})
-        set_order_status(order, "review", "رسید کارت‌به‌کارت برای بررسی ارسال شد")
-        send_receipt_to_telegram(receipt)
-        messages.success(request, "رسید ثبت شد و پس از بررسی نتیجه اعلام می‌شود.")
-        return redirect("order_status", code=code)
+    receipt_form = ReceiptForm()
+    if request.method == "POST" and order.payment_method == "card":
+        return redirect("card_payment", code=order.code)
     return render(request, "shop/order_status.html", {"order": order, "receipt_form": receipt_form})
 
 
@@ -283,15 +410,30 @@ def zarinpal_callback(request):
     authority = request.GET.get("Authority", "")
     order = get_object_or_404(Order, authority=authority, payment_method="zarinpal")
     request.session["order_code"] = order.code
+    request.session.modified = True
+    if order.stock_committed and order.status in ("paid", "processing", "shipped", "delivered"):
+        messages.success(request, "این پرداخت قبلاً با موفقیت تأیید شده است.")
+        return redirect("order_status", code=order.code)
+    if request.GET.get("Status") != "OK":
+        release_order_stock(order)
+        order.status = "cancelled"
+        order.save(update_fields=["status", "updated_at"])
+        queue_bot_event("payment_failed", order_event_payload(order))
+        messages.error(request, "پرداخت انجام نشد یا توسط شما لغو شد.")
+        return redirect("order_status", code=order.code)
     try:
-        verified = request.GET.get("Status") == "OK" and zarinpal_verify(order)
-    except Exception:
+        verified = zarinpal_verify(order)
+    except Exception as exc:
+        release_order_stock(order)
+        order.status = "cancelled"
+        order.admin_note = f"خطای تایید زرین‌پال: {exc}"
+        order.save(update_fields=["status", "admin_note", "updated_at"])
+        queue_bot_event("payment_failed", order_event_payload(order))
         verified = False
     if verified:
-        send_telegram_text(f"✅ پرداخت زرین‌پال تایید شد\nسفارش: <b>{order.code}</b>\nکد پیگیری: {order.payment_ref_id}")
-        messages.success(request, "پرداخت با موفقیت انجام شد.")
+        messages.success(request, f"پرداخت با موفقیت انجام شد. کد پیگیری: {order.payment_ref_id}")
     else:
-        messages.error(request, "پرداخت ناموفق بود یا توسط شما لغو شد.")
+        messages.error(request, "پرداخت ناموفق بود یا امکان تأیید آن وجود نداشت.")
     return redirect("order_status", code=order.code)
 
 
@@ -307,7 +449,10 @@ def health(request):
 
 def robots(request):
     sitemap = request.build_absolute_uri(reverse("sitemap"))
-    return HttpResponse(f"User-agent: *\nAllow: /\nDisallow: /admin/\nDisallow: /checkout/\nSitemap: {sitemap}\n", content_type="text/plain")
+    return HttpResponse(
+        f"User-agent: *\nAllow: /\nDisallow: /admin/\nDisallow: /checkout/\nSitemap: {sitemap}\n",
+        content_type="text/plain",
+    )
 
 
 def sitemap(request):
