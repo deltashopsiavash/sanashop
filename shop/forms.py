@@ -4,6 +4,7 @@ from django import forms
 from django.contrib.auth import get_user_model
 from django.contrib.auth.forms import UserCreationForm
 
+from .iran_locations import province_choices, valid_city
 from .models import Order, PaymentReceipt
 
 User = get_user_model()
@@ -68,21 +69,31 @@ class RegistrationForm(UserCreationForm):
 
 
 class CheckoutForm(forms.ModelForm):
+    province = forms.ChoiceField(label="استان", choices=())
+    city = forms.CharField(label="شهر", max_length=80)
+    accept_terms = forms.BooleanField(label="قوانین و مقررات را می‌پذیرم", required=True)
+
     class Meta:
         model = Order
         fields = ["full_name", "mobile", "email", "province", "city", "postal_code", "address", "note", "payment_method"]
-        widgets = {"address": forms.Textarea(attrs={"rows": 3}), "note": forms.Textarea(attrs={"rows": 2})}
+        widgets = {
+            "full_name": forms.TextInput(attrs={"autocomplete": "name", "placeholder": "نام و نام خانوادگی"}),
+            "mobile": forms.TextInput(attrs={"autocomplete": "tel", "inputmode": "tel", "placeholder": "09xxxxxxxxx"}),
+            "email": forms.EmailInput(attrs={"autocomplete": "email", "placeholder": "example@gmail.com"}),
+            "postal_code": forms.TextInput(attrs={"autocomplete": "postal-code", "inputmode": "numeric", "maxlength": "10", "placeholder": "کد پستی ۱۰ رقمی"}),
+            "address": forms.Textarea(attrs={"rows": 4, "autocomplete": "street-address", "placeholder": "خیابان، کوچه، پلاک و واحد"}),
+            "note": forms.Textarea(attrs={"rows": 3, "placeholder": "توضیحی برای سفارش دارید؟"}),
+        }
 
     def __init__(self, *args, store_settings=None, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields["full_name"].label = "نام و نام خانوادگی"
-        self.fields["mobile"].label = "شماره موبایل"
+        self.fields["mobile"].label = "شماره همراه"
         self.fields["email"].label = "ایمیل (اختیاری)"
-        self.fields["province"].label = "استان"
-        self.fields["city"].label = "شهر"
+        self.fields["province"].choices = [("", "انتخاب استان")] + province_choices()
         self.fields["postal_code"].label = "کد پستی"
         self.fields["address"].label = "آدرس کامل"
-        self.fields["note"].label = "توضیحات (اختیاری)"
+        self.fields["note"].label = "یادداشت سفارش (اختیاری)"
         self.fields["payment_method"].label = "روش پرداخت"
         if store_settings:
             choices = []
@@ -105,16 +116,29 @@ class CheckoutForm(forms.ModelForm):
         return value
 
     def clean_postal_code(self):
-        value = re.sub(r"\D", "", self.cleaned_data["postal_code"])
+        value = (self.cleaned_data.get("postal_code") or "").strip()
+        fa = "۰۱۲۳۴۵۶۷۸۹"
+        ar = "٠١٢٣٤٥٦٧٨٩"
+        value = value.translate(str.maketrans(fa + ar, "0123456789" * 2))
+        value = re.sub(r"\D", "", value)
         if len(value) != 10:
-            raise forms.ValidationError("کد پستی باید ۱۰ رقم باشد.")
+            raise forms.ValidationError("کد پستی باید دقیقاً ۱۰ رقم باشد.")
         return value
+
+    def clean(self):
+        cleaned = super().clean()
+        province = cleaned.get("province")
+        city = (cleaned.get("city") or "").strip()
+        if province and city and not valid_city(province, city):
+            self.add_error("city", "شهر انتخاب‌شده مربوط به این استان نیست.")
+        return cleaned
 
 
 class ReceiptForm(forms.ModelForm):
     class Meta:
         model = PaymentReceipt
         fields = ["image"]
+        widgets = {"image": forms.ClearableFileInput(attrs={"accept": "image/jpeg,image/png,image/webp"})}
 
     def clean_image(self):
         image = self.cleaned_data["image"]
