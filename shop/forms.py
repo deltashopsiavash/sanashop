@@ -99,7 +99,7 @@ class CheckoutForm(forms.ModelForm):
             choices = []
             if store_settings.payment_mode in ("zarinpal", "both") and store_settings.zarinpal_merchant_id:
                 choices.append(("zarinpal", "پرداخت آنلاین زرین‌پال"))
-            if store_settings.payment_mode in ("card", "both") and store_settings.card_number:
+            if store_settings.payment_mode in ("card", "both"):
                 choices.append(("card", "کارت به کارت و آپلود رسید"))
             self.fields["payment_method"].choices = choices
         for field in self.fields.values():
