@@ -1,0 +1,88 @@
+/* SanaShop v7 polish: final responsive/auth/payment guardrails. */
+html,body{max-width:100%;overflow-x:hidden}
+img{max-width:100%;height:auto}
+button,a,input,textarea,select{touch-action:manipulation}
+input,textarea,select{max-width:100%}
+
+/* Brand images are always visually circular, regardless of uploaded source shape. */
+.brand img,.brand-mark{border-radius:50%!important;object-fit:cover!important;aspect-ratio:1/1;background:#fff}
+.delta-footer-logo{border-radius:50%!important;overflow:hidden!important;aspect-ratio:1/1}
+.delta-footer-logo img{width:100%!important;height:100%!important;border-radius:50%!important;object-fit:cover!important}
+
+/* Password eye control - automatically injected for every password field. */
+.password-field-wrap{position:relative;width:100%;display:block}
+.password-field-wrap>input{width:100%!important;padding-inline-end:48px!important}
+.password-toggle{position:absolute;inset-inline-end:7px;top:50%;transform:translateY(-50%);width:38px;height:38px;border:0;border-radius:10px;background:transparent;color:#697386;display:grid;place-items:center;cursor:pointer;z-index:2;padding:8px}
+.password-toggle:hover,.password-toggle:focus-visible{background:#f2f4f7;color:var(--brand);outline:none}
+.password-toggle svg{width:21px;height:21px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+
+/* Registration + OTP */
+.registration-card{width:min(100%,720px)!important}
+.registration-form{margin-top:18px}
+.registration-grid{display:grid;grid-template-columns:1fr 1fr;gap:15px}
+.registration-grid .field{min-width:0;margin:0}
+.registration-grid .field-full{grid-column:1/-1}
+.registration-grid .form-control{width:100%}
+.registration-terms{margin:18px 0 14px!important;padding:12px 13px;border:1px solid #e7ebef;border-radius:13px;background:#fbfcfd}
+.terms-link{color:var(--brand)!important;font-weight:900;text-decoration:underline;text-underline-offset:3px}
+.terms-checkbox{width:18px!important;height:18px!important;flex:0 0 18px;margin-top:3px}
+.otp-card{width:min(100%,500px)!important}
+.otp-form{display:grid;gap:14px;margin-top:20px}
+.otp-input{width:100%;height:62px;border:1px solid #dfe5ea;border-radius:16px;background:#fff;text-align:center;direction:ltr;font-size:28px;font-weight:900;letter-spacing:.42em;padding:0 12px 0 3px;color:#242c37;outline:none}
+.otp-input:focus{border-color:var(--brand);box-shadow:0 0 0 4px color-mix(in srgb,var(--brand) 11%,transparent)}
+.otp-resend-form{margin-top:12px}
+.otp-resend-btn{border:0;background:transparent;color:var(--brand);font-weight:800;cursor:pointer;padding:8px 12px}
+.otp-help{display:block;color:#7b8592;margin-top:8px}
+.otp-error{margin:14px 0!important;text-align:center}
+
+/* Checkout consent is an actual discoverable link. */
+.terms-check{min-width:0}
+.terms-check span{min-width:0}
+
+/* Card number used to inherit white text over a white .card-number background. */
+.card-box .card-number{display:block!important;width:100%;background:rgba(255,255,255,.10)!important;color:#fff!important;border:1px solid rgba(255,255,255,.22)!important;border-radius:13px!important;padding:12px 14px!important;margin:9px 0 12px!important;font-size:21px!important;line-height:1.6!important;letter-spacing:2px!important;direction:ltr!important;text-align:left!important;font-weight:900!important;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.card-box small,.card-box strong,.card-box b{color:#fff}
+
+/* General layout hardening for both desktop and phone. */
+.delta-checkout-card,.delta-checkout-summary,.delta-cart-item,.invoice-card,.status-card,.auth-card{min-width:0}
+.delta-checkout-field input,.delta-checkout-field textarea,.form-control{font-size:16px}
+.checkout-mini-item span,.delta-cart-info,.status-card,.invoice-card{overflow-wrap:anywhere}
+.btn{min-height:44px}
+.header-action,.mobile-bottom-nav a,.mobile-bottom-nav button{min-height:44px}
+
+.customer-profile-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:20px}
+.customer-profile-grid>div{border:1px solid #e7ebef;border-radius:14px;padding:13px;background:#fff;min-width:0}
+.customer-profile-grid small{display:block;color:#7b8592;margin-bottom:4px}
+.customer-profile-grid b{overflow-wrap:anywhere}
+.customer-code-chip{display:inline-flex;align-items:center;direction:ltr;background:#f3f5f7;color:var(--brand);font-weight:900;border-radius:999px;padding:5px 11px;letter-spacing:.04em}
+
+@media(max-width:900px){
+  .delta-checkout-layout,.delta-cart-layout,.order-status-grid{grid-template-columns:minmax(0,1fr)!important}
+  .delta-checkout-summary,.delta-summary{position:static!important}
+}
+
+@media(max-width:760px){
+  .container,.narrow{width:min(100% - 24px,1180px)!important}
+  .section{padding-top:34px;padding-bottom:96px}
+  .registration-grid{grid-template-columns:1fr}
+  .registration-grid .field-full{grid-column:auto}
+  .auth-card,.registration-card,.otp-card{padding:22px 16px!important;border-radius:20px!important}
+  .auth-card h1{font-size:25px!important}
+  .customer-profile-grid{grid-template-columns:1fr}
+  .delta-checkout-fields,.location-pair{grid-template-columns:1fr!important}
+  .delta-checkout-field.full,.location-pair,.payment-methods,.terms-check,.delta-checkout-submit{grid-column:1!important}
+  .delta-checkout-card,.delta-checkout-summary,.invoice-card,.status-card{padding:16px!important;border-radius:18px!important}
+  .invoice-head{flex-direction:column;align-items:stretch!important}
+  .reservation-timer{align-self:flex-start}
+  .card-box{padding:15px!important}
+  .card-box .card-number{font-size:18px!important;letter-spacing:1.4px!important}
+  .otp-input{font-size:24px;letter-spacing:.32em;height:58px}
+  .password-toggle{width:40px;height:40px}
+}
+
+@media(max-width:390px){
+  .container,.narrow{width:min(100% - 18px,1180px)!important}
+  .auth-card,.delta-checkout-card,.delta-checkout-summary,.invoice-card{padding:14px!important}
+  .btn{padding-inline:14px}
+  .card-box .card-number{font-size:16px!important;letter-spacing:1px!important}
+}
