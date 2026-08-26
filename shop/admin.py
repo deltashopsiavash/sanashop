@@ -1,5 +1,6 @@
 from django.contrib import admin
 
+from .extra_models import CustomerProfile, EmailVerificationCode
 from .models import Category, ContentPage, DiscountCode, EmailVerificationToken, HeroSlide, Order, OrderItem, OrderStatusEvent, PaymentReceipt, Product, ProductImage, SiteSetting, SocialLink
 
 
@@ -42,7 +43,7 @@ class OrderAdmin(admin.ModelAdmin):
     list_display = ("code", "full_name", "customer", "mobile", "total", "payment_method", "status", "tracking_code", "created_at")
     list_filter = ("status", "payment_method", "created_at")
     list_editable = ("status",)
-    search_fields = ("code", "full_name", "mobile", "postal_code", "tracking_code", "customer__email")
+    search_fields = ("code", "full_name", "mobile", "postal_code", "tracking_code", "customer__email", "customer__customer_profile__customer_code")
     readonly_fields = ("code", "subtotal", "shipping", "total", "authority", "payment_ref_id", "created_at", "updated_at")
     inlines = [OrderItemInline, OrderStatusInline]
 
@@ -70,6 +71,21 @@ class SiteSettingAdmin(admin.ModelAdmin):
 
     def has_add_permission(self, request):
         return not SiteSetting.objects.exists()
+
+
+@admin.register(CustomerProfile)
+class CustomerProfileAdmin(admin.ModelAdmin):
+    list_display = ("customer_code", "user", "phone", "created_at")
+    search_fields = ("customer_code", "phone", "user__email", "user__first_name", "user__last_name")
+    readonly_fields = ("customer_code", "created_at", "updated_at")
+
+
+@admin.register(EmailVerificationCode)
+class EmailVerificationCodeAdmin(admin.ModelAdmin):
+    list_display = ("user", "expires_at", "attempts", "last_sent_at")
+    readonly_fields = ("code", "created_at", "updated_at")
+    search_fields = ("user__email",)
+
 
 admin.site.site_header = "مدیریت فروشگاه"
 admin.site.site_title = "پنل فروشگاه"
