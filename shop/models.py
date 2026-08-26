@@ -54,6 +54,11 @@ class SiteSetting(models.Model):
         self.pk = 1
         super().save(*args, **kwargs)
 
+    def shipping_for(self, subtotal):
+        if self.free_shipping_threshold and subtotal >= self.free_shipping_threshold:
+            return 0
+        return self.shipping_fee
+
     def __str__(self):
         return self.site_name
 
@@ -92,6 +97,7 @@ class Product(models.Model):
     price = models.PositiveBigIntegerField(validators=[MinValueValidator(1)])
     compare_at_price = models.PositiveBigIntegerField(null=True, blank=True)
     stock = models.PositiveIntegerField(default=0)
+    reserved_stock = models.PositiveIntegerField(default=0, help_text="تعداد رزروشده در فاکتورهای پرداخت‌نشده")
     image = models.ImageField(upload_to="products/%Y/%m/", blank=True)
     is_active = models.BooleanField(default=True)
     is_featured = models.BooleanField(default=False)
@@ -111,11 +117,19 @@ class Product(models.Model):
             self.slug = unique_slug(self, self.name)
         if not self.sku:
             self.sku = f"SNA-{uuid.uuid4().hex[:8].upper()}"
+        if self.compare_at_price is not None and self.compare_at_price <= self.price:
+            self.compare_at_price = None
+        if self.reserved_stock > self.stock:
+            self.reserved_stock = self.stock
         super().save(*args, **kwargs)
 
     @property
+    def available_stock(self):
+        return max(0, int(self.stock or 0) - int(self.reserved_stock or 0))
+
+    @property
     def available(self):
-        return self.is_active and self.stock > 0
+        return self.is_active and self.available_stock > 0
 
     def __str__(self):
         return self.name
@@ -132,7 +146,16 @@ class ProductImage(models.Model):
 
 
 class Order(models.Model):
-    STATUS = [("pending", "در انتظار پرداخت"), ("review", "بررسی پرداخت"), ("paid", "پرداخت‌شده"), ("processing", "در حال آماده‌سازی"), ("shipped", "ارسال‌شده"), ("cancelled", "لغوشده")]
+    STATUS = [
+        ("pending", "در انتظار پرداخت"),
+        ("review", "در انتظار تایید رسید"),
+        ("rejected", "رسید رد شده"),
+        ("paid", "پرداخت‌شده"),
+        ("processing", "در حال آماده‌سازی"),
+        ("shipped", "ارسال‌شده"),
+        ("delivered", "تحویل‌شده"),
+        ("cancelled", "لغوشده"),
+    ]
     PAYMENT = [("zarinpal", "زرین‌پال"), ("card", "کارت به کارت")]
     customer = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="orders")
     code = models.CharField(max_length=16, unique=True, editable=False)
@@ -156,6 +179,12 @@ class Order(models.Model):
     tracking_code = models.CharField(max_length=100, blank=True)
     tracking_url = models.URLField(blank=True)
     shipped_at = models.DateTimeField(null=True, blank=True)
+    paid_at = models.DateTimeField(null=True, blank=True)
+    reservation_expires_at = models.DateTimeField(null=True, blank=True, db_index=True)
+    stock_committed = models.BooleanField(default=False)
+    reservation_released = models.BooleanField(default=False)
+    receipt_rejection_reason = models.TextField(blank=True)
+    admin_note = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -166,6 +195,22 @@ class Order(models.Model):
         if not self.code:
             self.code = uuid.uuid4().hex[:10].upper()
         super().save(*args, **kwargs)
+
+    @property
+    def reservation_active(self):
+        return bool(
+            self.reservation_expires_at
+            and timezone.now() < self.reservation_expires_at
+            and not self.stock_committed
+            and not self.reservation_released
+            and self.status not in ("cancelled",)
+        )
+
+    @property
+    def reservation_remaining_seconds(self):
+        if not self.reservation_active:
+            return 0
+        return max(0, int((self.reservation_expires_at - timezone.now()).total_seconds()))
 
     def __str__(self):
         return f"{self.code} - {self.full_name}"
@@ -304,3 +349,24 @@ class DiscountCode(models.Model):
 
     def __str__(self):
         return f"{self.code} - {self.percent}%"
+
+
+class BotEvent(models.Model):
+    KIND_CHOICES = [
+        ("order_created", "فاکتور جدید"),
+        ("receipt_uploaded", "رسید جدید"),
+        ("payment_success", "پرداخت موفق"),
+        ("payment_failed", "پرداخت ناموفق"),
+        ("reservation_expired", "پایان رزرو"),
+        ("order_status", "تغییر وضعیت سفارش"),
+    ]
+    kind = models.CharField(max_length=40, choices=KIND_CHOICES)
+    payload = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    delivered_at = models.DateTimeField(null=True, blank=True, db_index=True)
+
+    class Meta:
+        ordering = ["id"]
+
+    def __str__(self):
+        return f"{self.kind} #{self.pk}"
