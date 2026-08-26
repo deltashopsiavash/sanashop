@@ -9,12 +9,12 @@ case "${1:-}" in
     OLD_COMMIT="$(git rev-parse HEAD)"
     git reset --hard origin/main
     printf '%s\n' "$OLD_COMMIT" > .last-version
-    docker compose build --pull
-    docker compose up -d --remove-orphans
+    docker compose build --pull web
+    docker compose up -d --remove-orphans db web caddy
     docker compose exec -T web python manage.py migrate --noinput
     docker compose exec -T web python manage.py collectstatic --noinput
     docker compose ps
-    echo "آپدیت کامل شد؛ دیتابیس و تصاویر حفظ شدند."
+    echo "آپدیت سایت کامل شد؛ دیتابیس و تصاویر حفظ شدند."
     ;;
   backup)
     mkdir -p backups
@@ -29,11 +29,11 @@ case "${1:-}" in
   rollback)
     [[ -f .last-version ]] || { echo "نسخه قبلی ثبت نشده است."; exit 1; }
     git reset --hard "$(cat .last-version)"
-    docker compose up -d --build --remove-orphans
-    echo "کد به نسخه قبلی برگشت."
+    docker compose up -d --build --remove-orphans db web caddy
+    echo "کد سایت به نسخه قبلی برگشت."
     ;;
   logs) docker compose logs -f --tail=200 "${2:-web}" ;;
   status) docker compose ps ;;
-  restart) docker compose restart ;;
-  *) echo "کاربرد: sanashop {update|backup|rollback|logs [web|bot|backup]|status|restart}"; exit 1 ;;
+  restart) docker compose restart db web caddy ;;
+  *) echo "کاربرد: sanashop {update|backup|rollback|logs [web|db|caddy]|status|restart}"; exit 1 ;;
 esac
