@@ -1,6 +1,7 @@
 from django.contrib.auth import views as auth_views
 from django.urls import path
 from django.urls import reverse_lazy
+
 from . import views
 from .site_api import bot_api
 
@@ -23,11 +24,13 @@ urlpatterns = [
     path("category/<str:category_slug>/", views.catalog, name="category"),
     path("product/<str:slug>/", views.product_detail, name="product_detail"),
     path("cart/", views.cart, name="cart"),
+    path("cart/data/", views.cart_data, name="cart_data"),
     path("cart/add/<int:product_id>/", views.cart_add, name="cart_add"),
     path("cart/update/<int:product_id>/", views.cart_update, name="cart_update"),
     path("cart/discount/apply/", views.discount_apply, name="discount_apply"),
     path("cart/discount/remove/", views.discount_remove, name="discount_remove"),
     path("checkout/", views.checkout, name="checkout"),
+    path("payment/card/<str:code>/", views.card_payment, name="card_payment"),
     path("order/<str:code>/", views.order_status, name="order_status"),
     path("payment/zarinpal/callback/", views.zarinpal_callback, name="zarinpal_callback"),
     path("page/<str:page>/", views.content_page, name="content_page"),
