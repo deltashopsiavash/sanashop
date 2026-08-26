@@ -43,7 +43,7 @@ Wants=network-online.target
 Type=simple
 WorkingDirectory=$APP_DIR
 EnvironmentFile=/etc/sanashop-bot.env
-ExecStart=$APP_DIR/.venv/bin/python $APP_DIR/external_bot_v5.py
+ExecStart=$APP_DIR/.venv/bin/python $APP_DIR/external_bot_v6.py
 Restart=always
 RestartSec=3
 User=root
@@ -64,7 +64,8 @@ if ! systemctl is-active --quiet sanashop-bot; then
   exit 1
 fi
 
-echo "✅ ربات خارجی آپدیت شد."
-echo "✅ دیتابیس مدیرها و سایت‌های متصل در /var/lib/sanashop-bot حفظ شده است."
+echo "✅ ربات خارجی به نسخه پایدار v6 آپدیت شد."
+echo "✅ اتصال‌های ذخیره‌شده، مدیرها و API Keyها در /var/lib/sanashop-bot حفظ شده‌اند."
+echo "✅ ارتباط سایت دارای keep-alive، retry و backoff خودکار است."
 echo "وضعیت: systemctl status sanashop-bot --no-pager"
 echo "لاگ:    journalctl -u sanashop-bot -f"
