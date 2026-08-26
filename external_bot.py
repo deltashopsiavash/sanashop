@@ -48,7 +48,9 @@ async def api(site, action, payload=None):
         r.raise_for_status(); return r.json()
 
 def main_kb(uid):
-    rows=[[InlineKeyboardButton("🏪 سایت‌ها",callback_data="sites"),InlineKeyboardButton("🔗 اتصال سایت",callback_data="connect")],
+    rows=[[InlineKeyboardButton("🏪 سایت‌ها",callback_data="sites")]]
+    if is_owner(uid): rows[0].append(InlineKeyboardButton("🔗 اتصال سایت",callback_data="connect"))
+    rows += [
           [InlineKeyboardButton("📊 داشبورد",callback_data="dash"),InlineKeyboardButton("🛍 محصولات",callback_data="products")],
           [InlineKeyboardButton("🛒 سفارش‌ها",callback_data="orders"),InlineKeyboardButton("👥 کاربران",callback_data="users")],
           [InlineKeyboardButton("⚙️ تنظیمات",callback_data="settings")]]
@@ -70,22 +72,51 @@ async def cb(update:Update, context:ContextTypes.DEFAULT_TYPE):
         context.user_data.clear(); context.user_data['flow']='connect_url'; return await q.edit_message_text("آدرس کامل سایت را بفرستید؛ مثال https://shop.example.com")
     if d=="sites":
         ss=sites_for(uid); keys=[[InlineKeyboardButton(f"{'✅ ' if active(uid) and active(uid)['id']==s['id'] else ''}{s['name']}",callback_data=f"site:{s['id']}")] for s in ss]
-        keys.append([InlineKeyboardButton("⬅️ منو",callback_data="home")]); return await q.edit_message_text("🏪 سایت‌های شما:",reply_markup=InlineKeyboardMarkup(keys))
+        keys.append([InlineKeyboardButton("⬅️ منو",callback_data="home")]); return await q.edit_message_text("🏪 سایت‌های مجاز شما:",reply_markup=InlineKeyboardMarkup(keys))
     if d.startswith("site:"):
         sid=int(d.split(':')[1]); allowed={s['id'] for s in sites_for(uid)}
-        if sid not in allowed:return
+        if sid not in allowed:return await q.answer("به این سایت دسترسی ندارید.",show_alert=True)
         with db() as c: c.execute("INSERT OR REPLACE INTO active_site(telegram_id,site_id) VALUES(?,?)",(uid,sid)); c.commit()
         return await q.edit_message_text("✅ سایت فعال تغییر کرد.",reply_markup=main_kb(uid))
     if d=="home": return await q.edit_message_text("💎 پنل مدیریت",reply_markup=main_kb(uid))
     if d=="admins":
         if not is_owner(uid): return
-        with db() as c: rows=c.execute("SELECT telegram_id FROM admins ORDER BY telegram_id").fetchall()
-        text="👤 مدیران:\n"+"\n".join(str(x['telegram_id']) for x in rows)
-        kb=InlineKeyboardMarkup([[InlineKeyboardButton("➕ افزودن مدیر",callback_data="admin_add"),InlineKeyboardButton("➖ حذف مدیر",callback_data="admin_del")],[InlineKeyboardButton("⬅️ منو",callback_data="home")]])
+        with db() as c:
+            rows=c.execute("SELECT telegram_id FROM admins ORDER BY telegram_id").fetchall()
+            lines=[]
+            for row in rows:
+                aid=row['telegram_id']
+                if aid==OWNER_ID:
+                    lines.append(f"👑 {aid} — مالک (همه سایت‌ها)")
+                else:
+                    assigned=c.execute("SELECT s.name FROM sites s JOIN site_admins a ON a.site_id=s.id WHERE a.telegram_id=?",(aid,)).fetchall()
+                    names="، ".join(x['name'] for x in assigned) or "بدون سایت"
+                    lines.append(f"👤 {aid} — {names}")
+        text="👤 مدیران و دسترسی‌ها:\n"+"\n".join(lines)
+        kb=InlineKeyboardMarkup([[InlineKeyboardButton("➕ افزودن/تغییر مدیر",callback_data="admin_add"),InlineKeyboardButton("➖ حذف مدیر",callback_data="admin_del")],[InlineKeyboardButton("⬅️ منو",callback_data="home")]])
         return await q.edit_message_text(text,reply_markup=kb)
-    if d in ("admin_add","admin_del"):
+    if d=="admin_add":
         if not is_owner(uid): return
-        context.user_data.clear();context.user_data['flow']=d;return await q.edit_message_text("آیدی عددی تلگرام را بفرستید:")
+        context.user_data.clear();context.user_data['flow']='admin_add_id';return await q.edit_message_text("آیدی عددی تلگرام مدیر را بفرستید:")
+    if d=="admin_del":
+        if not is_owner(uid): return
+        context.user_data.clear();context.user_data['flow']='admin_del';return await q.edit_message_text("آیدی عددی تلگرام مدیری که می‌خواهید حذف شود را بفرستید:")
+    if d.startswith("admin_grant:"):
+        if not is_owner(uid): return
+        aid=context.user_data.get('pending_admin_id')
+        if not aid:return await q.edit_message_text("درخواست منقضی شده؛ دوباره از بخش مدیران شروع کنید.",reply_markup=main_kb(uid))
+        sid=int(d.split(':')[1])
+        with db() as c:
+            site=c.execute("SELECT * FROM sites WHERE id=?",(sid,)).fetchone()
+            if not site:return await q.edit_message_text("سایت پیدا نشد.",reply_markup=main_kb(uid))
+            c.execute("INSERT OR IGNORE INTO admins(telegram_id,added_by) VALUES(?,?)",(aid,uid))
+            # هر مدیر تفویض‌شده فقط و فقط به یک سایت دسترسی دارد.
+            c.execute("DELETE FROM site_admins WHERE telegram_id=?",(aid,))
+            c.execute("INSERT INTO site_admins(site_id,telegram_id) VALUES(?,?)",(sid,aid))
+            c.execute("INSERT OR REPLACE INTO active_site(telegram_id,site_id) VALUES(?,?)",(aid,sid))
+            c.commit()
+        context.user_data.clear()
+        return await q.edit_message_text(f"✅ مدیر {aid} فقط به سایت «{site['name']}» دسترسی دارد.",reply_markup=main_kb(uid))
     s=active(uid)
     if not s:return await q.edit_message_text("ابتدا یک سایت متصل/انتخاب کنید.",reply_markup=main_kb(uid))
     try:
@@ -114,21 +145,28 @@ async def msg(update:Update, context:ContextTypes.DEFAULT_TYPE):
         try: info=await api(fake,'ping'); name=info['site']['name']
         except Exception as e:return await update.message.reply_text(f"❌ اتصال ناموفق: {e}\nآدرس/کلید را بررسی کنید و /start بزنید.")
         with db() as c:
-            cur=c.execute("INSERT INTO sites(name,base_url,api_key,owner_id) VALUES(?,?,?,?)",(name,url,text,uid));sid=cur.lastrowid
+            existing=c.execute("SELECT id FROM sites WHERE base_url=?",(url,)).fetchone()
+            if existing:
+                sid=existing['id']; c.execute("UPDATE sites SET name=?,api_key=?,owner_id=? WHERE id=?",(name,text,uid,sid))
+            else:
+                cur=c.execute("INSERT INTO sites(name,base_url,api_key,owner_id) VALUES(?,?,?,?)",(name,url,text,uid));sid=cur.lastrowid
             c.execute("INSERT OR IGNORE INTO site_admins(site_id,telegram_id) VALUES(?,?)",(sid,uid));c.execute("INSERT OR REPLACE INTO active_site VALUES(?,?)",(uid,sid));c.commit()
         context.user_data.clear();return await update.message.reply_text(f"✅ سایت {name} متصل شد.",reply_markup=main_kb(uid))
-    if flow=='admin_add' and text.isdigit():
+    if flow=='admin_add_id' and text.isdigit():
         aid=int(text)
-        with db() as c:
-            c.execute("INSERT OR IGNORE INTO admins(telegram_id,added_by) VALUES(?,?)",(aid,uid))
-            for s in c.execute("SELECT id FROM sites").fetchall(): c.execute("INSERT OR IGNORE INTO site_admins VALUES(?,?)",(s['id'],aid))
-            c.commit()
-        context.user_data.clear();return await update.message.reply_text("✅ مدیر اضافه شد و به سایت‌های فعلی دسترسی گرفت.",reply_markup=main_kb(uid))
+        if aid==OWNER_ID:return await update.message.reply_text("این آیدی مالک اصلی است و از قبل به همه سایت‌ها دسترسی دارد.",reply_markup=main_kb(uid))
+        ss=sites_for(OWNER_ID)
+        if not ss:return await update.message.reply_text("هنوز هیچ سایتی متصل نشده. ابتدا سایت را متصل کنید.",reply_markup=main_kb(uid))
+        context.user_data['pending_admin_id']=aid
+        context.user_data['flow']='admin_choose_site'
+        keys=[[InlineKeyboardButton(s['name'],callback_data=f"admin_grant:{s['id']}")] for s in ss]
+        keys.append([InlineKeyboardButton("⬅️ انصراف",callback_data="admins")])
+        return await update.message.reply_text(f"مدیر {aid} به کدام سایت دسترسی داشته باشد؟\nفقط همان سایت برای او باز خواهد بود:",reply_markup=InlineKeyboardMarkup(keys))
     if flow=='admin_del' and text.isdigit():
         aid=int(text)
         if aid==OWNER_ID:return await update.message.reply_text("مالک اصلی قابل حذف نیست.")
         with db() as c:c.execute("DELETE FROM admins WHERE telegram_id=?",(aid,));c.execute("DELETE FROM site_admins WHERE telegram_id=?",(aid,));c.execute("DELETE FROM active_site WHERE telegram_id=?",(aid,));c.commit()
-        context.user_data.clear();return await update.message.reply_text("✅ دسترسی مدیر حذف شد.",reply_markup=main_kb(uid))
+        context.user_data.clear();return await update.message.reply_text("✅ دسترسی مدیر به‌طور کامل حذف شد.",reply_markup=main_kb(uid))
 
 
 def run():
