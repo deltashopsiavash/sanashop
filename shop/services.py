@@ -36,17 +36,15 @@ def queue_bot_event(kind, payload):
 def order_event_payload(order):
     items = []
     for item in order.items.select_related("product").all():
-        items.append(
-            {
-                "id": item.id,
-                "product_id": item.product_id,
-                "sku": item.product.sku if item.product else "",
-                "title": item.title,
-                "quantity": item.quantity,
-                "unit_price": item.unit_price,
-                "total": item.total,
-            }
-        )
+        items.append({
+            "id": item.id,
+            "product_id": item.product_id,
+            "sku": item.product.sku if item.product else "",
+            "title": item.title,
+            "quantity": item.quantity,
+            "unit_price": item.unit_price,
+            "total": item.total,
+        })
     return {
         "order_id": order.id,
         "code": order.code,
@@ -259,8 +257,7 @@ def create_order(form, rows, subtotal, store, customer=None, discount=None, disc
 
     for product, qty in locked_rows:
         OrderItem.objects.create(order=order, product=product, title=product.name, unit_price=product.price, quantity=qty)
-        product.reserved_stock = F("reserved_stock") + qty
-        product.save(update_fields=["reserved_stock", "updated_at"])
+        Product.objects.filter(pk=product.pk).update(reserved_stock=F("reserved_stock") + qty, updated_at=timezone.now())
 
     OrderStatusEvent.objects.create(order=order, status="pending", note="فاکتور ساخته شد و موجودی موقتاً رزرو شد")
     if discount:
@@ -273,7 +270,6 @@ def create_order(form, rows, subtotal, store, customer=None, discount=None, disc
 def set_order_status(order, status, note="", tracking_code=""):
     if status not in dict(Order.STATUS):
         raise ValueError("وضعیت سفارش معتبر نیست.")
-
     if status in ("paid", "processing", "shipped", "delivered") and not order.stock_committed:
         commit_order_stock(order)
     elif status == "cancelled" and not order.stock_committed:
@@ -308,7 +304,6 @@ def set_order_status(order, status, note="", tracking_code=""):
 
 
 def send_telegram_text(text):
-    # سازگاری با کدهای قدیمی: سایت ایران دیگر مستقیماً به Telegram وصل نمی‌شود.
     logger.info("Legacy Telegram message suppressed: %s", text)
 
 
