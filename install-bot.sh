@@ -55,7 +55,7 @@ git clone --depth 1 "$REPO_URL" "$APP_DIR"
 cd "$APP_DIR"
 python3 -m venv .venv
 .venv/bin/pip install --upgrade pip
-.venv/bin/pip install python-telegram-bot==22.3 httpx==0.28.1
+.venv/bin/pip install python-telegram-bot==22.3 httpx==0.28.1 paramiko==3.5.1
 install -d -m 700 /var/lib/sanashop-bot
 
 cat > /etc/sanashop-bot.env <<EOF
@@ -67,7 +67,7 @@ chmod 600 /etc/sanashop-bot.env
 
 cat > /etc/systemd/system/sanashop-bot.service <<EOF
 [Unit]
-Description=SanaShop Multi-site Telegram Bot
+Description=SanaShop Multi-site Telegram Bot (SSH Transport)
 After=network-online.target
 Wants=network-online.target
 
@@ -75,7 +75,7 @@ Wants=network-online.target
 Type=simple
 WorkingDirectory=$APP_DIR
 EnvironmentFile=/etc/sanashop-bot.env
-ExecStart=$APP_DIR/.venv/bin/python $APP_DIR/external_bot.py
+ExecStart=$APP_DIR/.venv/bin/python $APP_DIR/external_bot_ssh.py
 Restart=always
 RestartSec=3
 User=root
@@ -94,13 +94,8 @@ if ! systemctl is-active --quiet sanashop-bot; then
   exit 1
 fi
 
-PUBLIC_IP="$(curl -4 -fsS --max-time 8 https://api.ipify.org 2>/dev/null || true)"
-
 echo
-echo "✅ ربات خارجی نصب و اتصال Telegram تست شد."
-if [[ -n "$PUBLIC_IP" ]]; then
-  echo "🌍 IP عمومی این سرور: $PUBLIC_IP"
-  echo "این IP را موقع نصب هر سایت ایران در قسمت «IP عمومی سرور خارجی ربات» وارد کن."
-fi
+echo "✅ ربات خارجی با روش SSH نصب شد."
+echo "ارتباط مدیریتی سایت‌ها دیگر به DNS/HTTPS/API عمومی وابسته نیست."
 echo "وضعیت: systemctl status sanashop-bot"
 echo "لاگ:    journalctl -u sanashop-bot -f"
