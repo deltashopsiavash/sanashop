@@ -13,11 +13,9 @@
     -Server
   }
 
-  @blockedBotApi {
-    path /api/bot/v1/
-    not remote_ip {$BOT_SERVER_IP}
-  }
-  respond @blockedBotApi "Forbidden" 403
+  # The management API is authenticated by a strong per-site Bearer key in Django.
+  # Do not bind it to a single source IP: existing installs and external bot servers
+  # may change IP, and an IP-only Caddy gate can silently break otherwise-valid bots.
 
   handle_path /static/* {
     root * /srv/static
