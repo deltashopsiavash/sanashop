@@ -9,3 +9,19 @@ class ShopConfig(AppConfig):
     def ready(self):
         # These models live in a separate module to keep the original store models stable.
         from . import extra_models  # noqa: F401
+
+        # Some legacy fields used environment variables directly as model defaults.
+        # That made `makemigrations` report fake model changes on every production
+        # server because DEFAULT_SITE_NAME/card/Zarinpal values differ by install.
+        # Keep migration state deterministic; bootstrap_shop applies env values.
+        from .models import SiteSetting
+
+        stable_defaults = {
+            "site_name": "سنا",
+            "zarinpal_merchant_id": "",
+            "zarinpal_sandbox": False,
+            "card_number": "",
+            "card_owner": "",
+        }
+        for field_name, value in stable_defaults.items():
+            SiteSetting._meta.get_field(field_name).default = value
