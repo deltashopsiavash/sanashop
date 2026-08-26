@@ -1,15 +1,48 @@
 from django.db import migrations, models
 
 
-def copy_legacy_socials(apps, schema_editor):
+def copy_legacy_footer(apps, schema_editor):
+    SiteSetting = apps.get_model("shop", "SiteSetting")
+    FooterSetting = apps.get_model("shop", "FooterSetting")
     LegacySocial = apps.get_model("shop", "SocialLink")
     FooterSocial = apps.get_model("shop", "FooterSocial")
+
+    store = SiteSetting.objects.filter(pk=1).first()
+    if store:
+        FooterSetting.objects.update_or_create(
+            pk=1,
+            defaults={
+                "address": store.address or "",
+                "phone": store.phone or "",
+                "email": "",
+                "description": store.tagline or "",
+                "support_text": "",
+            },
+        )
+
+    platform_terms = [
+        ("instagram", ("instagram", "اینستاگرام")),
+        ("telegram", ("telegram", "t.me", "تلگرام")),
+        ("whatsapp", ("whatsapp", "wa.me", "واتساپ")),
+        ("rubika", ("rubika", "روبیکا")),
+        ("eitaa", ("eitaa", "ایتا")),
+        ("youtube", ("youtube", "youtu.be", "یوتیوب")),
+        ("aparat", ("aparat", "آپارات")),
+        ("facebook", ("facebook", "فیسبوک")),
+        ("x", ("twitter", "x.com", "توییتر", "ایکس")),
+    ]
     for item in LegacySocial.objects.all().order_by("sort_order", "id"):
+        haystack = f"{item.title} {item.url}".lower()
+        platform = "other"
+        for value, terms in platform_terms:
+            if any(term.lower() in haystack for term in terms):
+                platform = value
+                break
         FooterSocial.objects.get_or_create(
             label=item.title,
             url=item.url,
             defaults={
-                "platform": "other",
+                "platform": platform,
                 "is_active": item.is_active,
                 "sort_order": item.sort_order,
             },
@@ -72,5 +105,5 @@ class Migration(migrations.Migration):
             ],
             options={"ordering": ["sort_order", "-id"]},
         ),
-        migrations.RunPython(copy_legacy_socials, migrations.RunPython.noop),
+        migrations.RunPython(copy_legacy_footer, migrations.RunPython.noop),
     ]
