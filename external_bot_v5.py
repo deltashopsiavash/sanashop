@@ -11,6 +11,40 @@ async def callback(update: Update, context):
     uid = q.from_user.id
     data = q.data or ""
 
+    if data.startswith("footer:"):
+        _, sid = data.split(":")
+        site = plus.site_from(uid, sid)
+        if not site:
+            return await q.answer("عدم دسترسی", show_alert=True)
+        await q.answer()
+        x = (await core.api(site, "settings_get"))["data"]
+        text = (
+            f"🦶 فوتر سایت\n\n"
+            f"📍 آدرس: {x.get('address') or '-'}\n"
+            f"☎️ تلفن: {x.get('phone') or '-'}\n"
+            f"✉️ ایمیل: {x.get('contact_email') or '-'}\n"
+            f"📝 توضیح: {x.get('footer_description') or '-'}\n"
+            f"🛡 اینماد: {'✅' if x.get('has_enamad_image') else '❌'}"
+        )
+        kb = InlineKeyboardMarkup([
+            [InlineKeyboardButton("⚙️ تنظیم کامل فوتر", callback_data=f"footer_setup:{sid}")],
+            [InlineKeyboardButton("📍 آدرس", callback_data=f"footer_address:{sid}"), InlineKeyboardButton("☎️ تلفن", callback_data=f"footer_phone:{sid}")],
+            [InlineKeyboardButton("✉️ ایمیل", callback_data=f"footer_email:{sid}"), InlineKeyboardButton("📝 توضیح فوتر", callback_data=f"footer_desc:{sid}")],
+            [InlineKeyboardButton("🔗 شبکه‌های اجتماعی", callback_data=f"socials:{sid}"), InlineKeyboardButton("🛡 عکس اینماد", callback_data=f"enamad:{sid}")],
+            [InlineKeyboardButton("⬅️ پنل سایت", callback_data=f"site_info:{sid}")],
+        ])
+        return await q.edit_message_text(text, reply_markup=kb)
+
+    if data.startswith("footer_setup:"):
+        _, sid = data.split(":")
+        site = plus.site_from(uid, sid)
+        if not site:
+            return await q.answer("عدم دسترسی", show_alert=True)
+        await q.answer()
+        context.user_data.clear()
+        context.user_data.update(flow="footer_setup_address", site_id=int(sid))
+        return await q.edit_message_text("📍 آدرس کامل فروشگاه را بفرستید:\nبرای خالی گذاشتن فقط - بفرستید.")
+
     if data.startswith("social_platform_v4:"):
         _, sid, platform = data.split(":", 2)
         site = plus.site_from(uid, sid)
@@ -103,6 +137,42 @@ async def callback(update: Update, context):
 async def message(update: Update, context):
     flow = context.user_data.get("flow")
     uid = update.effective_user.id
+    text = (update.message.text or "").strip()
+
+    guided = {
+        "footer_setup_address",
+        "footer_setup_phone",
+        "footer_setup_email",
+        "footer_setup_desc",
+    }
+    if flow in guided:
+        site_id = context.user_data.get("site_id")
+        if not site_id or not core.can_access(uid, int(site_id)):
+            context.user_data.clear()
+            return await update.message.reply_text("⛔️ دسترسی شما به این سایت لغو شده است.")
+        site = core.get_site(int(site_id))
+        value = "" if text == "-" else text
+        if flow == "footer_setup_address":
+            await core.api(site, "settings_update", {"address": value})
+            context.user_data["flow"] = "footer_setup_phone"
+            return await update.message.reply_text("☎️ شماره تماس را بفرستید:\nبرای خالی گذاشتن - بفرستید.")
+        if flow == "footer_setup_phone":
+            await core.api(site, "settings_update", {"phone": value})
+            context.user_data["flow"] = "footer_setup_email"
+            return await update.message.reply_text("✉️ ایمیل فروشگاه را بفرستید:\nبرای خالی گذاشتن - بفرستید.")
+        if flow == "footer_setup_email":
+            if text != "-" and ("@" not in text or "." not in text.rsplit("@", 1)[-1]):
+                return await update.message.reply_text("ایمیل معتبر بفرستید؛ مثال shop@example.com")
+            await core.api(site, "settings_update", {"contact_email": value})
+            context.user_data["flow"] = "footer_setup_desc"
+            return await update.message.reply_text("📝 یک توضیح کوتاه برای پایین فوتر بفرستید:\nبرای خالی گذاشتن - بفرستید.")
+        await core.api(site, "settings_update", {"footer_description": value})
+        context.user_data.clear()
+        return await update.message.reply_text(
+            "✅ اطلاعات اصلی فوتر کامل شد.\nحالا از بخش فوتر می‌توانی شبکه‌های اجتماعی و عکس اینماد را هم تنظیم کنی.",
+            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🦶 باز کردن فوتر", callback_data=f"footer:{site_id}")]]),
+        )
+
     footer_fields = {
         "footer_address": "address",
         "footer_phone": "phone",
@@ -115,7 +185,6 @@ async def message(update: Update, context):
             context.user_data.clear()
             return await update.message.reply_text("⛔️ دسترسی شما به این سایت لغو شده است.")
         site = core.get_site(int(site_id))
-        text = (update.message.text or "").strip()
         if flow == "footer_email" and text != "-" and ("@" not in text or "." not in text.rsplit("@", 1)[-1]):
             return await update.message.reply_text("ایمیل معتبر بفرستید؛ مثال shop@example.com")
         value = "" if text == "-" else text
