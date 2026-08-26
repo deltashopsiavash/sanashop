@@ -2,9 +2,11 @@ from django.contrib.auth import views as auth_views
 from django.urls import path
 from django.urls import reverse_lazy
 from . import views
+from .site_api import bot_api
 
 urlpatterns = [
     path("", views.home, name="home"),
+    path("api/bot/v1/", bot_api, name="bot_api_v1"),
     path("account/register/", views.register, name="register"),
     path("account/verify/<uuid:token>/", views.verify_email, name="verify_email"),
     path("account/login/", views.account_entry, name="login"),
