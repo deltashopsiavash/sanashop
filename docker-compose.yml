@@ -36,7 +36,6 @@ services:
     environment:
       DOMAIN: ${DOMAIN}
       ACME_EMAIL: ${ACME_EMAIL}
-      BOT_SERVER_IP: ${BOT_SERVER_IP}
     ports:
       - "80:80"
       - "443:443"
