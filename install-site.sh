@@ -10,7 +10,6 @@ if [[ ${EUID} -ne 0 ]]; then
 fi
 
 DOMAIN="${DOMAIN:-}"
-BOT_SERVER_IP="${BOT_SERVER_IP:-}"
 ACME_EMAIL="${ACME_EMAIL:-}"
 DEFAULT_SITE_NAME="${DEFAULT_SITE_NAME:-}"
 DEFAULT_CARD_NUMBER="${DEFAULT_CARD_NUMBER:-}"
@@ -45,7 +44,6 @@ read_value() {
 }
 
 read_value DOMAIN "دامنه سایت بدون https:// : "
-read_value BOT_SERVER_IP "IP عمومی سرور خارجی ربات: "
 read_value ACME_EMAIL "ایمیل SSL: "
 read_value DEFAULT_SITE_NAME "نام فروشگاه [سنا]: " "سنا"
 read_value DEFAULT_CARD_NUMBER "شماره کارت (اختیاری): "
@@ -59,16 +57,12 @@ read_value SMTP_USER "SMTP username: " "$ACME_EMAIL"
 read_value SMTP_PASSWORD "SMTP password/App Password: " "" 1
 read_value DEFAULT_FROM_EMAIL "ایمیل فرستنده: " "$ACME_EMAIL"
 
-if [[ -z "$DOMAIN" || -z "$BOT_SERVER_IP" || -z "$ACME_EMAIL" || -z "$DJANGO_SUPERUSER_PASSWORD" || -z "$SMTP_HOST" || -z "$SMTP_USER" || -z "$SMTP_PASSWORD" ]]; then
+if [[ -z "$DOMAIN" || -z "$ACME_EMAIL" || -z "$DJANGO_SUPERUSER_PASSWORD" || -z "$SMTP_HOST" || -z "$SMTP_USER" || -z "$SMTP_PASSWORD" ]]; then
   echo "فیلدهای الزامی کامل نیستند."
   exit 1
 fi
 if [[ ! "$DOMAIN" =~ ^[A-Za-z0-9.-]+$ ]]; then
   echo "دامنه معتبر نیست؛ فقط نام دامنه را بدون http/https یا مسیر وارد کنید."
-  exit 1
-fi
-if [[ ! "$BOT_SERVER_IP" =~ ^[0-9A-Fa-f:.]+$ ]]; then
-  echo "IP سرور ربات معتبر نیست."
   exit 1
 fi
 
@@ -102,7 +96,6 @@ SANASHOP_BOT_API_KEY="$(openssl rand -hex 32)"
 
 cat > .env <<EOF
 DOMAIN=$DOMAIN
-BOT_SERVER_IP=$BOT_SERVER_IP
 ACME_EMAIL=$ACME_EMAIL
 DJANGO_SECRET_KEY=$DJANGO_SECRET_KEY
 DJANGO_DEBUG=0
@@ -182,7 +175,7 @@ echo
 echo "✅ نصب داخلی سایت و API با موفقیت تست شد."
 echo "🌐 سایت: https://$DOMAIN"
 echo "👤 پنل وب: https://$DOMAIN/admin/"
-echo "🔒 API مدیریت فقط برای IP سرور ربات باز است: $BOT_SERVER_IP"
+echo "🔐 API مدیریت با کلید اختصاصی SANASHOP_BOT_API_KEY محافظت می‌شود."
 echo
 echo "🔑 کلید اتصال ربات:"
 echo "$SANASHOP_BOT_API_KEY"
