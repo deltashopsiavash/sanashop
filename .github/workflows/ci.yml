@@ -13,7 +13,7 @@ jobs:
           python-version: "3.12"
           cache: pip
       - run: pip install -r requirements.txt
-      - run: python -m py_compile external_bot.py external_bot_plus.py external_bot_v5.py
+      - run: python -m py_compile external_bot.py external_bot_plus.py external_bot_v5.py external_bot_v6.py bot_resilience.py
       - run: python manage.py check --deploy
         env:
           DJANGO_SECRET_KEY: ci-only-secret
