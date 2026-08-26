@@ -32,8 +32,13 @@ case "${1:-}" in
     docker compose up -d --build --remove-orphans db web caddy
     echo "کد سایت به نسخه قبلی برگشت."
     ;;
+  bot-key)
+    KEY="$(sed -n 's/^SANASHOP_BOT_API_KEY=//p' .env | head -n1)"
+    [[ -n "$KEY" ]] || { echo "کلید اتصال در .env پیدا نشد."; exit 1; }
+    echo "$KEY"
+    ;;
   logs) docker compose logs -f --tail=200 "${2:-web}" ;;
   status) docker compose ps ;;
   restart) docker compose restart db web caddy ;;
-  *) echo "کاربرد: sanashop {update|backup|rollback|logs [web|db|caddy]|status|restart}"; exit 1 ;;
+  *) echo "کاربرد: sanashop {update|backup|rollback|bot-key|logs [web|db|caddy]|status|restart}"; exit 1 ;;
 esac
