@@ -56,7 +56,7 @@ cd "$APP_DIR"
 python3 -m venv .venv
 .venv/bin/pip install --upgrade pip
 .venv/bin/pip install python-telegram-bot==22.3 httpx==0.28.1
-mkdir -p /var/lib/sanashop-bot
+install -d -m 700 /var/lib/sanashop-bot
 
 cat > /etc/sanashop-bot.env <<EOF
 TELEGRAM_BOT_TOKEN=$TELEGRAM_BOT_TOKEN
@@ -79,6 +79,7 @@ ExecStart=$APP_DIR/.venv/bin/python $APP_DIR/external_bot.py
 Restart=always
 RestartSec=3
 User=root
+UMask=0077
 
 [Install]
 WantedBy=multi-user.target
