@@ -9,6 +9,7 @@
   <link rel="stylesheet" href="{% static 'shop/style.css' %}">
   <link rel="stylesheet" href="{% static 'shop/delta-upgrade.css' %}?v=2">
   <link rel="stylesheet" href="{% static 'shop/footer-story.css' %}?v=1">
+  <link rel="stylesheet" href="{% static 'shop/polish-v7.css' %}?v=1">
   <style>:root{--brand:{{ store_settings.primary_color|default:'#7b243f' }}}</style>
   {% block head %}{% endblock %}
 </head>
@@ -70,7 +71,7 @@
     </div>
   </dialog>
   {% endif %}
-  <script src="{% static 'shop/main.js' %}" defer></script>
+  <script src="{% static 'shop/main.js' %}?v=7" defer></script>
   <script src="{% static 'shop/delta-upgrade.js' %}?v=2" defer></script>
   <script src="{% static 'shop/story-ui.js' %}?v=1" defer></script>
   {% block scripts %}{% endblock %}
