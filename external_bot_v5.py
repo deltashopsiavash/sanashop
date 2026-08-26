@@ -6,6 +6,30 @@ import external_bot as core
 import external_bot_plus as plus
 
 
+def _save_connected_site(url, api_key, name):
+    """Upsert a site while remaining compatible with older bot.sqlite3 schemas."""
+    with core.db() as conn:
+        existing = conn.execute("SELECT id FROM sites WHERE base_url=?", (url,)).fetchone()
+        if existing:
+            conn.execute(
+                "UPDATE sites SET name=?, api_key=? WHERE id=?",
+                (name, api_key, existing["id"]),
+            )
+        else:
+            columns = {row[1] for row in conn.execute("PRAGMA table_info(sites)").fetchall()}
+            if "owner_id" in columns:
+                conn.execute(
+                    "INSERT INTO sites(name, base_url, api_key, owner_id) VALUES(?,?,?,?)",
+                    (name, url, api_key, core.OWNER_ID),
+                )
+            else:
+                conn.execute(
+                    "INSERT INTO sites(name, base_url, api_key) VALUES(?,?,?)",
+                    (name, url, api_key),
+                )
+        conn.commit()
+
+
 async def callback(update: Update, context):
     q = update.callback_query
     uid = q.from_user.id
@@ -138,6 +162,28 @@ async def message(update: Update, context):
     flow = context.user_data.get("flow")
     uid = update.effective_user.id
     text = (update.message.text or "").strip()
+
+    # Handle reconnect here so bot databases created by older SanaShop versions
+    # (where sites.owner_id was NOT NULL) can still save a newly connected site.
+    if flow == "connect_key" and core.is_owner(uid):
+        url = context.user_data.get("url")
+        if not url:
+            context.user_data.clear()
+            return await update.message.reply_text("درخواست اتصال منقضی شده است؛ /start را بزنید و دوباره تلاش کنید.")
+        fake = {"base_url": url, "api_key": text}
+        try:
+            info = await core.api(fake, "ping")
+            name = info["site"]["name"]
+            _save_connected_site(url, text, name)
+        except Exception as exc:
+            return await update.message.reply_text(
+                f"❌ اتصال ناموفق:\n{exc}\n\nبعد از اصلاح، /start را بزنید و دوباره تلاش کنید."
+            )
+        context.user_data.clear()
+        return await update.message.reply_text(
+            f"✅ سایت «{name}» به ربات متصل شد.\nبرای دسترسی مدیران از بخش «مدیران» استفاده کنید.",
+            reply_markup=core.owner_home(),
+        )
 
     guided = {
         "footer_setup_address",
