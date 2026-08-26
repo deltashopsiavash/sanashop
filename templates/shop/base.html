@@ -7,7 +7,8 @@
   <meta name="description" content="{% block description %}فروش آنلاین اکسسوری‌های خاص و باکیفیت از {{ store_settings.site_name }}{% endblock %}">
   <title>{% block title %}{{ store_settings.site_name }}{% endblock %}</title>
   <link rel="stylesheet" href="{% static 'shop/style.css' %}">
-  <link rel="stylesheet" href="{% static 'shop/delta-upgrade.css' %}?v=1">
+  <link rel="stylesheet" href="{% static 'shop/delta-upgrade.css' %}?v=2">
+  <link rel="stylesheet" href="{% static 'shop/footer-story.css' %}?v=1">
   <style>:root{--brand:{{ store_settings.primary_color|default:'#7b243f' }}}</style>
   {% block head %}{% endblock %}
 </head>
@@ -44,41 +45,13 @@
     <nav class="nav"><div class="container nav-inner">
       <a href="{% url 'catalog' %}">همه محصولات</a>
       {% for cat in nav_categories %}<a href="{% url 'category' cat.slug %}">{{ cat.name }}</a>{% endfor %}
-      {% for page in footer_pages %}{% if page.footer_group == 'other' %}<a href="{% url 'content_page' page.slug %}">{{ page.title }}</a>{% endif %}{% endfor %}
     </div></nav>
   </header>
 
   {% if messages %}<div class="container messages">{% for message in messages %}<div class="message {{ message.tags }}">{{ message }}</div>{% endfor %}</div>{% endif %}
   {% block content %}{% endblock %}
 
-  <footer class="delta-rich-footer">
-    <div class="delta-footer-inner">
-      <section class="delta-footer-contact">
-        <div class="delta-footer-logo">{% if store_settings.logo %}<img src="{{ store_settings.logo.url }}" alt="{{ store_settings.site_name }}">{% else %}<span>{{ store_settings.site_name|slice:':1' }}</span>{% endif %}</div>
-        <div class="delta-footer-info">
-          <strong>{{ store_settings.site_name }}</strong>
-          {% if store_settings.tagline %}<p>{{ store_settings.tagline }}</p>{% endif %}
-          {% if store_settings.address %}<p><b>آدرس:</b> {{ store_settings.address }}</p>{% endif %}
-          {% if store_settings.phone %}<p><b>شماره تماس:</b> <a href="tel:{{ store_settings.phone }}">{{ store_settings.phone }}</a></p>{% endif %}
-          <p>خرید امن، بسته‌بندی دقیق و پیگیری سفارش تا زمان تحویل.</p>
-        </div>
-      </section>
-
-      <section class="delta-footer-links">
-        <h3>راهنمای فروشگاه</h3>
-        {% for page in footer_pages %}<a href="{% url 'content_page' page.slug %}">{{ page.title }}</a>{% empty %}<a href="{% url 'catalog' %}">مشاهده محصولات</a>{% endfor %}
-        <a href="{% url 'my_orders' %}">پیگیری سفارش‌ها</a>
-      </section>
-
-      <section class="delta-footer-social">
-        <h3>با ما همراه باشید</h3>
-        {% if social_links %}<div class="delta-social-grid">{% for item in social_links %}<a href="{{ item.url }}" target="_blank" rel="noopener noreferrer" title="{{ item.title }}" aria-label="{{ item.title }}"><img src="{{ item.image.url }}" alt="{{ item.title }}"></a>{% endfor %}</div>{% else %}<p class="muted">شبکه اجتماعی فعالی ثبت نشده است.</p>{% endif %}
-      </section>
-
-      <section class="delta-trust" aria-label="نماد اعتماد">{% if store_settings.enamad_html %}<div>{{ store_settings.enamad_html|safe }}</div>{% endif %}</section>
-      <div class="delta-footer-copy">© {% now "Y" %} {{ store_settings.site_name }} — تمامی حقوق محفوظ است.</div>
-    </div>
-  </footer>
+  {% include 'shop/_delta_footer.html' %}
 
   <nav class="mobile-bottom-nav" aria-label="منوی موبایل">
     <a href="{% url 'home' %}"><svg viewBox="0 0 24 24"><path d="m3 11 9-8 9 8v10h-6v-6H9v6H3z"/></svg><span>خانه</span></a>
@@ -98,6 +71,7 @@
   </dialog>
   {% endif %}
   <script src="{% static 'shop/main.js' %}" defer></script>
-  <script src="{% static 'shop/delta-upgrade.js' %}?v=1" defer></script>
+  <script src="{% static 'shop/delta-upgrade.js' %}?v=2" defer></script>
+  <script src="{% static 'shop/story-ui.js' %}?v=1" defer></script>
   {% block scripts %}{% endblock %}
 </body></html>
