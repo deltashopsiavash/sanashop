@@ -9,8 +9,8 @@ if [[ ${EUID} -ne 0 ]]; then
   exit 1
 fi
 
-# Predeclare variables so set -u never trips on interactive defaults.
 DOMAIN="${DOMAIN:-}"
+BOT_SERVER_IP="${BOT_SERVER_IP:-}"
 ACME_EMAIL="${ACME_EMAIL:-}"
 DEFAULT_SITE_NAME="${DEFAULT_SITE_NAME:-}"
 DEFAULT_CARD_NUMBER="${DEFAULT_CARD_NUMBER:-}"
@@ -29,13 +29,15 @@ read_value() {
   current="${!key:-}"
   value="$current"
   if [[ -z "$value" ]]; then
-    if [[ -r /dev/tty ]]; then
-      if [[ "$secret" == "1" ]]; then
-        read -r -s -p "$prompt" value < /dev/tty
-        echo > /dev/tty
-      else
-        read -r -p "$prompt" value < /dev/tty
-      fi
+    if [[ ! -r /dev/tty ]]; then
+      echo "ترمینال تعاملی در دسترس نیست."
+      exit 1
+    fi
+    if [[ "$secret" == "1" ]]; then
+      read -r -s -p "$prompt" value < /dev/tty
+      echo > /dev/tty
+    else
+      read -r -p "$prompt" value < /dev/tty
     fi
   fi
   value="${value:-$default}"
@@ -43,6 +45,7 @@ read_value() {
 }
 
 read_value DOMAIN "دامنه سایت بدون https:// : "
+read_value BOT_SERVER_IP "IP عمومی سرور خارجی ربات: "
 read_value ACME_EMAIL "ایمیل SSL: "
 read_value DEFAULT_SITE_NAME "نام فروشگاه [سنا]: " "سنا"
 read_value DEFAULT_CARD_NUMBER "شماره کارت (اختیاری): "
@@ -50,19 +53,22 @@ read_value DEFAULT_CARD_OWNER "نام صاحب کارت (اختیاری): "
 read_value ZARINPAL_MERCHANT_ID "مرچنت زرین‌پال (اختیاری): "
 read_value DJANGO_SUPERUSER_USERNAME "نام کاربری پنل [admin]: " "admin"
 read_value DJANGO_SUPERUSER_PASSWORD "رمز پنل وب: " "" 1
-read_value SMTP_HOST "SMTP Host: "
+read_value SMTP_HOST "SMTP Host (برای Gmail: smtp.gmail.com): "
 read_value SMTP_PORT "SMTP Port [587]: " "587"
 read_value SMTP_USER "SMTP username: " "$ACME_EMAIL"
 read_value SMTP_PASSWORD "SMTP password/App Password: " "" 1
 read_value DEFAULT_FROM_EMAIL "ایمیل فرستنده: " "$ACME_EMAIL"
 
-if [[ -z "$DOMAIN" || -z "$ACME_EMAIL" || -z "$DJANGO_SUPERUSER_PASSWORD" || -z "$SMTP_HOST" || -z "$SMTP_USER" || -z "$SMTP_PASSWORD" ]]; then
+if [[ -z "$DOMAIN" || -z "$BOT_SERVER_IP" || -z "$ACME_EMAIL" || -z "$DJANGO_SUPERUSER_PASSWORD" || -z "$SMTP_HOST" || -z "$SMTP_USER" || -z "$SMTP_PASSWORD" ]]; then
   echo "فیلدهای الزامی کامل نیستند."
   exit 1
 fi
-
 if [[ ! "$DOMAIN" =~ ^[A-Za-z0-9.-]+$ ]]; then
   echo "دامنه معتبر نیست؛ فقط نام دامنه را بدون http/https یا مسیر وارد کنید."
+  exit 1
+fi
+if [[ ! "$BOT_SERVER_IP" =~ ^[0-9A-Fa-f:.]+$ ]]; then
+  echo "IP سرور ربات معتبر نیست."
   exit 1
 fi
 
@@ -74,8 +80,13 @@ if ! command -v docker >/dev/null 2>&1; then
 fi
 systemctl enable --now docker
 
+if command -v ufw >/dev/null 2>&1 && ufw status 2>/dev/null | grep -q "Status: active"; then
+  ufw allow 80/tcp >/dev/null || true
+  ufw allow 443/tcp >/dev/null || true
+fi
+
 if [[ -e "$APP_DIR" ]]; then
-  echo "$APP_DIR از قبل وجود دارد. چون نصب قبلی قبل از clone متوقف شده بود، اگر این مسیر واقعاً خالی/نامربوط نیست آن را بررسی کنید."
+  echo "مسیر $APP_DIR از قبل وجود دارد. اگر سرور خام است ابتدا آن را حذف کنید: rm -rf $APP_DIR"
   exit 1
 fi
 
@@ -88,6 +99,7 @@ SANASHOP_BOT_API_KEY="$(openssl rand -hex 32)"
 
 cat > .env <<EOF
 DOMAIN=$DOMAIN
+BOT_SERVER_IP=$BOT_SERVER_IP
 ACME_EMAIL=$ACME_EMAIL
 DJANGO_SECRET_KEY=$DJANGO_SECRET_KEY
 DJANGO_DEBUG=0
@@ -116,13 +128,52 @@ EOF
 chmod 600 .env
 ln -sf "$APP_DIR/scripts/sanashop" /usr/local/bin/sanashop
 
+echo "در حال بررسی تنظیم Caddy..."
+docker compose run --rm --no-deps caddy caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
+
+echo "در حال ساخت و اجرای سایت..."
 docker compose up -d --build db web caddy
 
+WEB_OK=0
+for _ in $(seq 1 30); do
+  if docker compose exec -T web curl -fsS http://127.0.0.1:8000/health/ >/dev/null 2>&1; then
+    WEB_OK=1
+    break
+  fi
+  sleep 2
+done
+if [[ "$WEB_OK" != "1" ]]; then
+  echo "❌ سرویس Django سالم نشد."
+  docker compose logs --tail=120 web
+  exit 1
+fi
+
+API_OK=0
+for _ in $(seq 1 10); do
+  if docker compose exec -T web curl -fsS -X POST \
+    -H "Authorization: Bearer $SANASHOP_BOT_API_KEY" \
+    -H "Content-Type: application/json" \
+    -d '{"action":"ping","payload":{}}' \
+    http://127.0.0.1:8000/api/bot/v1/ | grep -q '"ok": true'; then
+    API_OK=1
+    break
+  fi
+  sleep 1
+done
+if [[ "$API_OK" != "1" ]]; then
+  echo "❌ API داخلی سایت پاسخ صحیح نداد."
+  docker compose logs --tail=120 web
+  exit 1
+fi
+
 echo
-echo "✅ سایت نصب شد: https://$DOMAIN"
-echo "پنل: https://$DOMAIN/admin/"
+echo "✅ نصب داخلی سایت و API با موفقیت تست شد."
+echo "🌐 سایت: https://$DOMAIN"
+echo "👤 پنل وب: https://$DOMAIN/admin/"
+echo "🔒 API مدیریت فقط برای IP سرور ربات باز است: $BOT_SERVER_IP"
 echo
-echo "🔑 کلید اتصال ربات (ذخیره کن):"
+echo "🔑 کلید اتصال ربات (این مقدار را در ربات وارد کن):"
 echo "$SANASHOP_BOT_API_KEY"
 echo
-echo "در ربات خارج: اتصال سایت → https://$DOMAIN → همین کلید"
+echo "اگر SSL چند ثانیه زمان خواست، وضعیت را با این دستور ببین:"
+echo "cd $APP_DIR && docker compose logs -f caddy"
