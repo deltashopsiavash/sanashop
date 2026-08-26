@@ -1,2 +1,30 @@
 {% extends 'shop/base.html' %}{% block title %}ثبت‌نام | {{ store_settings.site_name }}{% endblock %}
-{% block content %}<main class="section"><div class="container auth-shell"><section class="auth-card smart-auth-card"><span class="eyebrow">ثبت‌نام</span><h1>ساخت حساب جدید</h1><p>برای ایمیل زیر هنوز حسابی وجود ندارد. اطلاعات زیر را کامل کنید؛ سپس لینک تأیید ایمیل برایتان ارسال می‌شود.</p><div class="account-email-chip"><span>{{ registration_email }}</span><a href="{% url 'login' %}">تغییر ایمیل</a></div>{% if form.non_field_errors %}<div class="form-errors">{% for error in form.non_field_errors %}{{ error }}{% endfor %}</div>{% endif %}<form method="post">{% csrf_token %}{% for field in form %}{% if field.is_hidden %}{{ field }}{% else %}<div class="field"><label>{{ field.label }}</label>{{ field }}{% if field.help_text %}<small class="field-help">{{ field.help_text|safe }}</small>{% endif %}{% for error in field.errors %}<small class="error">{{ error }}</small>{% endfor %}</div>{% endif %}{% endfor %}<button class="btn btn-primary btn-block">ساخت حساب و ارسال تأیید</button></form></section></div></main>{% endblock %}
+{% block content %}
+<main class="section auth-minimal-page">
+  <div class="container auth-shell">
+    <section class="auth-card smart-auth-card registration-card">
+      <span class="eyebrow">ثبت‌نام</span>
+      <h1>ساخت حساب جدید</h1>
+      <p>اطلاعاتت را کامل کن؛ یک <b>کد ۶ رقمی</b> برای تأیید ایمیل ارسال می‌شود.</p>
+      <div class="account-email-chip"><span>{{ registration_email }}</span><a href="{% url 'login' %}">تغییر ایمیل</a></div>
+      {% if form.non_field_errors %}<div class="form-errors">{% for error in form.non_field_errors %}{{ error }}{% endfor %}</div>{% endif %}
+      <form method="post" class="registration-form" novalidate>
+        {% csrf_token %}{{ form.email }}
+        <div class="registration-grid">
+          <div class="field"><label for="{{ form.first_name.id_for_label }}">نام</label>{{ form.first_name }}{% for error in form.first_name.errors %}<small class="error">{{ error }}</small>{% endfor %}</div>
+          <div class="field"><label for="{{ form.last_name.id_for_label }}">نام خانوادگی</label>{{ form.last_name }}{% for error in form.last_name.errors %}<small class="error">{{ error }}</small>{% endfor %}</div>
+          <div class="field field-full"><label for="{{ form.phone.id_for_label }}">شماره تلفن همراه</label>{{ form.phone }}{% for error in form.phone.errors %}<small class="error">{{ error }}</small>{% endfor %}</div>
+          <div class="field"><label for="{{ form.password1.id_for_label }}">رمز عبور</label>{{ form.password1 }}{% if form.password1.help_text %}<small class="field-help">{{ form.password1.help_text|safe }}</small>{% endif %}{% for error in form.password1.errors %}<small class="error">{{ error }}</small>{% endfor %}</div>
+          <div class="field"><label for="{{ form.password2.id_for_label }}">تکرار رمز عبور</label>{{ form.password2 }}{% for error in form.password2.errors %}<small class="error">{{ error }}</small>{% endfor %}</div>
+        </div>
+        <label class="terms-check registration-terms">
+          {{ form.accept_terms }}
+          <span><a class="terms-link" href="{% url 'content_page' 'terms' %}" target="_blank" rel="noopener">قوانین و مقررات</a> فروشگاه را خوانده‌ام و می‌پذیرم.</span>
+        </label>
+        {% for error in form.accept_terms.errors %}<small class="error">{{ error }}</small>{% endfor %}
+        <button class="btn btn-primary btn-block" type="submit">ساخت حساب و دریافت کد تأیید</button>
+      </form>
+    </section>
+  </div>
+</main>
+{% endblock %}

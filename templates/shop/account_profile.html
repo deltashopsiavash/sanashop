@@ -1,5 +1,18 @@
-{% extends 'shop/base.html' %}{% block title %}مشخصات حساب{% endblock %}
-{% block content %}<main class="section"><div class="container narrow"><div class="auth-card">
-<h1>مشخصات حساب</h1><p>نام: {{ user_profile.first_name|default:'-' }}</p><p>ایمیل: {{ user_profile.email }}</p>
-<a class="btn btn-primary btn-block" href="{% url 'my_orders' %}">مشاهده سفارشات</a>
-</div></div></main>{% endblock %}
+{% extends 'shop/base.html' %}{% load store_filters %}{% block title %}مشخصات حساب | {{ store_settings.site_name }}{% endblock %}
+{% block content %}
+<main class="section"><div class="container narrow"><div class="auth-card customer-profile-card">
+  <span class="eyebrow">حساب مشتری</span><h1>مشخصات حساب</h1>
+  <div class="customer-code-chip">{{ customer_profile.customer_code }}</div>
+  <div class="customer-profile-grid">
+    <div><small>نام</small><b>{{ user_profile.first_name|default:'-' }}</b></div>
+    <div><small>نام خانوادگی</small><b>{{ user_profile.last_name|default:'-' }}</b></div>
+    <div><small>ایمیل</small><b dir="ltr">{{ user_profile.email }}</b></div>
+    <div><small>شماره همراه</small><b dir="ltr">{{ customer_profile.phone|default:'-' }}</b></div>
+    <div><small>کل سفارش‌ها</small><b>{{ orders_count }}</b></div>
+    <div><small>سفارش‌های در حال اجرا</small><b>{{ active_orders_count }}</b></div>
+    <div><small>مجموع خرید موفق</small><b>{{ total_spent|money }} تومان</b></div>
+    <div><small>تاریخ عضویت</small><b>{{ user_profile.date_joined|date:'Y/m/d H:i' }}</b></div>
+  </div>
+  <a class="btn btn-primary btn-block" href="{% url 'my_orders' %}" style="margin-top:18px">مشاهده سفارش‌ها</a>
+</div></div></main>
+{% endblock %}

@@ -1,1 +1,20 @@
-{% extends 'shop/base.html' %}{% block content %}<main class="section"><div class="container auth-shell"><section class="auth-card center"><div class="status-icon">✉</div><h1>ایمیل تأیید ارسال شد</h1><p>لینک فعال‌سازی به <b>{{ email }}</b> ارسال شد. پوشه Spam را هم بررسی کنید.</p></section></div></main>{% endblock %}
+{% extends 'shop/base.html' %}{% block title %}تأیید ایمیل | {{ store_settings.site_name }}{% endblock %}
+{% block content %}
+<main class="section auth-minimal-page">
+  <div class="container auth-shell">
+    <section class="auth-card smart-auth-card otp-card center">
+      <div class="status-icon">✉</div>
+      <h1>کد تأیید ایمیل</h1>
+      <p>کد ۶ رقمی ارسال‌شده به <b dir="ltr">{{ email }}</b> را وارد کن.</p>
+      {% if verification_error %}<div class="message error otp-error">{{ verification_error }}</div>{% endif %}
+      <form method="post" class="otp-form" autocomplete="one-time-code">
+        {% csrf_token %}
+        <input class="otp-input" type="text" name="code" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9۰-۹٠-٩]{6}" placeholder="••••••" aria-label="کد تأیید ۶ رقمی" autofocus required>
+        <button class="btn btn-primary btn-block" type="submit">تأیید و فعال‌سازی حساب</button>
+      </form>
+      <form method="post" class="otp-resend-form">{% csrf_token %}<input type="hidden" name="action" value="resend"><button type="submit" class="otp-resend-btn">ارسال دوباره کد</button></form>
+      <small class="otp-help">کد حدود ۱۰ دقیقه معتبر است. پوشه Spam ایمیل را هم بررسی کن.</small>
+    </section>
+  </div>
+</main>
+{% endblock %}

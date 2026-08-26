@@ -118,3 +118,45 @@ document.addEventListener("click", async (event) => {
     if (event.target === dialog) closeDialog();
   });
 })();
+
+// تمام فیلدهای رمز عبور در ورود، ثبت‌نام و بازیابی رمز دکمه چشم دارند.
+(() => {
+  const eyeOpen = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z"/><circle cx="12" cy="12" r="2.8"/></svg>';
+  const eyeClosed = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3l18 18M10.7 6.1A10.5 10.5 0 0 1 12 6c6 0 9.5 6 9.5 6a16.7 16.7 0 0 1-2.1 2.8M6.2 6.2C3.8 8 2.5 12 2.5 12s3.5 6 9.5 6c1.4 0 2.6-.3 3.7-.8M9.9 9.9a3 3 0 0 0 4.2 4.2"/></svg>';
+  document.querySelectorAll('input[type="password"]').forEach((input) => {
+    if (input.closest(".password-field-wrap")) return;
+    const wrap = document.createElement("div");
+    wrap.className = "password-field-wrap";
+    input.parentNode.insertBefore(wrap, input);
+    wrap.appendChild(input);
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "password-toggle";
+    button.setAttribute("aria-label", "نمایش رمز عبور");
+    button.setAttribute("aria-pressed", "false");
+    button.innerHTML = eyeOpen;
+    button.addEventListener("click", () => {
+      const show = input.type === "password";
+      input.type = show ? "text" : "password";
+      button.setAttribute("aria-pressed", show ? "true" : "false");
+      button.setAttribute("aria-label", show ? "مخفی کردن رمز عبور" : "نمایش رمز عبور");
+      button.innerHTML = show ? eyeClosed : eyeOpen;
+      input.focus({ preventScroll: true });
+      try { input.setSelectionRange(input.value.length, input.value.length); } catch (_) {}
+    });
+    wrap.appendChild(button);
+  });
+})();
+
+// کد OTP را با اعداد فارسی/عربی هم می‌پذیریم و فقط شش رقم نگه می‌داریم.
+(() => {
+  const input = document.querySelector(".otp-input");
+  if (!input) return;
+  const normalize = (value) => value
+    .replace(/[۰-۹]/g, (d) => String("۰۱۲۳۴۵۶۷۸۹".indexOf(d)))
+    .replace(/[٠-٩]/g, (d) => String("٠١٢٣٤٥٦٧٨٩".indexOf(d)))
+    .replace(/\D/g, "")
+    .slice(0, 6);
+  input.addEventListener("input", () => { input.value = normalize(input.value); });
+  input.addEventListener("paste", () => window.setTimeout(() => { input.value = normalize(input.value); }, 0));
+})();

@@ -4,10 +4,24 @@ from django import forms
 from django.contrib.auth import get_user_model
 from django.contrib.auth.forms import UserCreationForm
 
+from .extra_models import CustomerProfile
 from .iran_locations import province_choices, valid_city
 from .models import Order, PaymentReceipt
 
 User = get_user_model()
+
+
+def normalize_mobile(value):
+    value = str(value or "")
+    fa = "۰۱۲۳۴۵۶۷۸۹"
+    ar = "٠١٢٣٤٥٦٧٨٩"
+    value = value.translate(str.maketrans(fa + ar, "0123456789" * 2))
+    value = re.sub(r"\D", "", value)
+    if value.startswith("0098"):
+        value = "0" + value[4:]
+    elif value.startswith("98"):
+        value = "0" + value[2:]
+    return value
 
 
 class EmailLookupForm(forms.Form):
@@ -29,23 +43,29 @@ class PasswordOnlyForm(forms.Form):
 
 
 class RegistrationForm(UserCreationForm):
-    full_name = forms.CharField(label="نام و نام خانوادگی", max_length=120)
+    first_name = forms.CharField(label="نام", max_length=60)
+    last_name = forms.CharField(label="نام خانوادگی", max_length=80)
+    phone = forms.CharField(label="شماره تلفن همراه", max_length=20)
     email = forms.EmailField(label="ایمیل")
+    accept_terms = forms.BooleanField(label="پذیرش قوانین و مقررات", required=True)
 
     class Meta:
         model = User
-        fields = ("full_name", "email", "password1", "password2")
+        fields = ("first_name", "last_name", "phone", "email", "password1", "password2", "accept_terms")
 
     def __init__(self, *args, fixed_email=None, **kwargs):
         super().__init__(*args, **kwargs)
         self.fixed_email = (fixed_email or "").strip().lower()
         for field in self.fields.values():
             field.widget.attrs.setdefault("class", "form-control")
-        self.fields["full_name"].widget.attrs.setdefault("placeholder", "نام و نام خانوادگی")
+        self.fields["first_name"].widget.attrs.update({"placeholder": "نام", "autocomplete": "given-name"})
+        self.fields["last_name"].widget.attrs.update({"placeholder": "نام خانوادگی", "autocomplete": "family-name"})
+        self.fields["phone"].widget.attrs.update({"placeholder": "09xxxxxxxxx", "autocomplete": "tel", "inputmode": "tel", "dir": "ltr"})
         self.fields["password1"].label = "رمز عبور"
         self.fields["password2"].label = "تکرار رمز عبور"
-        self.fields["password1"].widget.attrs.setdefault("placeholder", "رمز عبور")
-        self.fields["password2"].widget.attrs.setdefault("placeholder", "تکرار رمز عبور")
+        self.fields["password1"].widget.attrs.update({"placeholder": "رمز عبور", "autocomplete": "new-password"})
+        self.fields["password2"].widget.attrs.update({"placeholder": "تکرار رمز عبور", "autocomplete": "new-password"})
+        self.fields["accept_terms"].widget.attrs["class"] = "terms-checkbox"
         if self.fixed_email:
             self.fields["email"].initial = self.fixed_email
             self.fields["email"].disabled = True
@@ -57,14 +77,24 @@ class RegistrationForm(UserCreationForm):
             raise forms.ValidationError("این ایمیل قبلاً ثبت شده است.")
         return email
 
+    def clean_phone(self):
+        value = normalize_mobile(self.cleaned_data.get("phone"))
+        if not re.fullmatch(r"09\d{9}", value):
+            raise forms.ValidationError("شماره موبایل معتبر نیست؛ مثال: 09123456789")
+        if CustomerProfile.objects.filter(phone=value).exists():
+            raise forms.ValidationError("این شماره موبایل قبلاً برای یک حساب ثبت شده است.")
+        return value
+
     def save(self, commit=True):
         user = super().save(commit=False)
         user.email = self.cleaned_data["email"]
         user.username = user.email
-        user.first_name = self.cleaned_data["full_name"]
+        user.first_name = self.cleaned_data["first_name"].strip()
+        user.last_name = self.cleaned_data["last_name"].strip()
         user.is_active = False
         if commit:
             user.save()
+            CustomerProfile.ensure(user, self.cleaned_data["phone"])
         return user
 
 
@@ -87,6 +117,17 @@ class CheckoutForm(forms.ModelForm):
 
     def __init__(self, *args, store_settings=None, **kwargs):
         super().__init__(*args, **kwargs)
+        if not self.is_bound:
+            email = (self.initial.get("email") or "").strip().lower()
+            if email:
+                user = User.objects.filter(email__iexact=email).first()
+                if user:
+                    full_name = f"{user.first_name} {user.last_name}".strip()
+                    if full_name:
+                        self.initial["full_name"] = full_name
+                    profile = CustomerProfile.objects.filter(user=user).first()
+                    if profile and profile.phone:
+                        self.initial["mobile"] = profile.phone
         self.fields["full_name"].label = "نام و نام خانوادگی"
         self.fields["mobile"].label = "شماره همراه"
         self.fields["email"].label = "ایمیل (اختیاری)"
@@ -108,9 +149,7 @@ class CheckoutForm(forms.ModelForm):
             self.fields[name].required = True
 
     def clean_mobile(self):
-        value = re.sub(r"\D", "", self.cleaned_data["mobile"])
-        if value.startswith("98"):
-            value = "0" + value[2:]
+        value = normalize_mobile(self.cleaned_data["mobile"])
         if not re.fullmatch(r"09\d{9}", value):
             raise forms.ValidationError("شماره موبایل معتبر نیست.")
         return value
