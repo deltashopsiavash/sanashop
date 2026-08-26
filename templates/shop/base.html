@@ -1,4 +1,4 @@
-{% load static %}<!doctype html>
+{% load static store_filters %}<!doctype html>
 <html lang="fa" dir="rtl">
 <head>
   <meta charset="utf-8">
@@ -7,11 +7,12 @@
   <meta name="description" content="{% block description %}فروش آنلاین اکسسوری‌های خاص و باکیفیت از {{ store_settings.site_name }}{% endblock %}">
   <title>{% block title %}{{ store_settings.site_name }}{% endblock %}</title>
   <link rel="stylesheet" href="{% static 'shop/style.css' %}">
+  <link rel="stylesheet" href="{% static 'shop/delta-upgrade.css' %}?v=1">
   <style>:root{--brand:{{ store_settings.primary_color|default:'#7b243f' }}}</style>
   {% block head %}{% endblock %}
 </head>
 <body>
-  {% if store_settings.announcement %}<div class="announcement">{{ store_settings.announcement }}</div>{% endif %}
+  {% if store_settings.announcement %}<div class="announcement typing-announcement" aria-label="اعلان فروشگاه"><span data-typewriter data-text="{{ store_settings.announcement|escape }}">{{ store_settings.announcement }}</span><i class="typing-cursor" aria-hidden="true"></i></div>{% endif %}
   <header class="site-header">
     <div class="container header-row">
       <button class="menu-toggle header-icon-btn" type="button" data-menu-toggle aria-label="نمایش منو" onclick="document.body.classList.toggle('menu-open')">
@@ -46,20 +47,37 @@
       {% for page in footer_pages %}{% if page.footer_group == 'other' %}<a href="{% url 'content_page' page.slug %}">{{ page.title }}</a>{% endif %}{% endfor %}
     </div></nav>
   </header>
+
   {% if messages %}<div class="container messages">{% for message in messages %}<div class="message {{ message.tags }}">{{ message }}</div>{% endfor %}</div>{% endif %}
   {% block content %}{% endblock %}
-  <footer class="footer">
-    <div class="container footer-modern">
-      <div class="footer-brand-block">
-        <div class="footer-brand">{{ store_settings.site_name }}</div>
-        {% if store_settings.tagline %}<p>{{ store_settings.tagline }}</p>{% endif %}
-        <p class="muted">خرید امن، بسته‌بندی دقیق و پشتیبانی پاسخ‌گو.</p>
-      </div>
-      {% if footer_pages %}<div class="footer-page-links" aria-label="لینک‌های اطلاعات فروشگاه">{% for page in footer_pages %}{% if page.slug != 'buy-guide' and page.slug != 'contact' %}<a href="{% url 'content_page' page.slug %}">{{ page.title }}</a>{% endif %}{% endfor %}</div>{% endif %}
-      {% if social_links %}<div class="social-links" aria-label="شبکه‌های اجتماعی">{% for item in social_links %}<a href="{{ item.url }}" target="_blank" rel="noopener noreferrer" title="{{ item.title }}" aria-label="{{ item.title }}"><img src="{{ item.image.url }}" alt="{{ item.title }}"><span>{{ item.title }}</span></a>{% endfor %}</div>{% endif %}
-      <div class="trust" aria-label="نماد اعتماد">{% if store_settings.enamad_html %}{{ store_settings.enamad_html|safe }}{% else %}<div class="trust-placeholder trust-placeholder-empty" aria-hidden="true"></div>{% endif %}</div>
+
+  <footer class="delta-rich-footer">
+    <div class="delta-footer-inner">
+      <section class="delta-footer-contact">
+        <div class="delta-footer-logo">{% if store_settings.logo %}<img src="{{ store_settings.logo.url }}" alt="{{ store_settings.site_name }}">{% else %}<span>{{ store_settings.site_name|slice:':1' }}</span>{% endif %}</div>
+        <div class="delta-footer-info">
+          <strong>{{ store_settings.site_name }}</strong>
+          {% if store_settings.tagline %}<p>{{ store_settings.tagline }}</p>{% endif %}
+          {% if store_settings.address %}<p><b>آدرس:</b> {{ store_settings.address }}</p>{% endif %}
+          {% if store_settings.phone %}<p><b>شماره تماس:</b> <a href="tel:{{ store_settings.phone }}">{{ store_settings.phone }}</a></p>{% endif %}
+          <p>خرید امن، بسته‌بندی دقیق و پیگیری سفارش تا زمان تحویل.</p>
+        </div>
+      </section>
+
+      <section class="delta-footer-links">
+        <h3>راهنمای فروشگاه</h3>
+        {% for page in footer_pages %}<a href="{% url 'content_page' page.slug %}">{{ page.title }}</a>{% empty %}<a href="{% url 'catalog' %}">مشاهده محصولات</a>{% endfor %}
+        <a href="{% url 'my_orders' %}">پیگیری سفارش‌ها</a>
+      </section>
+
+      <section class="delta-footer-social">
+        <h3>با ما همراه باشید</h3>
+        {% if social_links %}<div class="delta-social-grid">{% for item in social_links %}<a href="{{ item.url }}" target="_blank" rel="noopener noreferrer" title="{{ item.title }}" aria-label="{{ item.title }}"><img src="{{ item.image.url }}" alt="{{ item.title }}"></a>{% endfor %}</div>{% else %}<p class="muted">شبکه اجتماعی فعالی ثبت نشده است.</p>{% endif %}
+      </section>
+
+      <section class="delta-trust" aria-label="نماد اعتماد">{% if store_settings.enamad_html %}<div>{{ store_settings.enamad_html|safe }}</div>{% endif %}</section>
+      <div class="delta-footer-copy">© {% now "Y" %} {{ store_settings.site_name }} — تمامی حقوق محفوظ است.</div>
     </div>
-    <div class="container copyright">© {% now "Y" %} {{ store_settings.site_name }} — تمامی حقوق محفوظ است.</div>
   </footer>
 
   <nav class="mobile-bottom-nav" aria-label="منوی موبایل">
@@ -67,27 +85,19 @@
     <button type="button" data-menu-toggle onclick="document.body.classList.toggle('menu-open')"><svg viewBox="0 0 24 24"><path d="M4 6h6v6H4zM14 6h6v6h-6zM4 16h6v4H4zM14 16h6v4h-6z"/></svg><span>دسته‌ها</span></button>
     <button onclick="document.body.classList.toggle('search-open');window.scrollTo({top:0,behavior:'smooth'})"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg><span>جستجو</span></button>
     <a href="{% url 'cart' %}" class="mobile-cart"><span class="mobile-cart-icon"><svg viewBox="0 0 24 24"><path d="M3 4h2l2.1 10.2a2 2 0 0 0 2 1.6h7.8a2 2 0 0 0 2-1.6L20 8H7"/></svg>{% if cart_count %}<b>{{ cart_count }}</b>{% endif %}</span><span>سبد</span></a>
-    {% if request.user.is_authenticated %}
-    <a href="{% url 'account_home' %}"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c.8-5 3.4-7 8-7s7.2 2 8 7"/></svg><span>حساب</span></a>
-    {% else %}
-    <button type="button" data-account-open aria-label="ورود یا ثبت‌نام"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c.8-5 3.4-7 8-7s7.2 2 8 7"/></svg><span>حساب</span></button>
-    {% endif %}
+    {% if request.user.is_authenticated %}<a href="{% url 'account_home' %}"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c.8-5 3.4-7 8-7s7.2 2 8 7"/></svg><span>حساب</span></a>{% else %}<button type="button" data-account-open aria-label="ورود یا ثبت‌نام"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c.8-5 3.4-7 8-7s7.2 2 8 7"/></svg><span>حساب</span></button>{% endif %}
   </nav>
 
   {% if not request.user.is_authenticated %}
   <dialog class="account-dialog" id="accountDialog" aria-labelledby="accountDialogTitle">
     <button class="account-dialog-close" type="button" data-account-close aria-label="بستن">×</button>
     <div class="account-dialog-card">
-      <h2 id="accountDialogTitle">ورود یا ثبت‌نام</h2>
-      <p>ایمیل خود را وارد کنید</p>
-      <form method="post" action="{% url 'login' %}" class="account-dialog-form">
-        {% csrf_token %}
-        <input type="hidden" name="next" value="{{ request.get_full_path }}">
-        <input type="email" name="email" autocomplete="email" inputmode="email" placeholder="example@gmail.com" aria-label="ایمیل" required>
-        <button class="btn btn-primary btn-block" type="submit">ادامه</button>
-      </form>
+      <h2 id="accountDialogTitle">ورود یا ثبت‌نام</h2><p>ایمیل خود را وارد کنید</p>
+      <form method="post" action="{% url 'login' %}" class="account-dialog-form">{% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}"><input type="email" name="email" autocomplete="email" inputmode="email" placeholder="example@gmail.com" aria-label="ایمیل" required><button class="btn btn-primary btn-block" type="submit">ادامه</button></form>
     </div>
   </dialog>
   {% endif %}
   <script src="{% static 'shop/main.js' %}" defer></script>
+  <script src="{% static 'shop/delta-upgrade.js' %}?v=1" defer></script>
+  {% block scripts %}{% endblock %}
 </body></html>
