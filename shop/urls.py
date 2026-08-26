@@ -3,7 +3,7 @@ from django.urls import path
 from django.urls import reverse_lazy
 
 from . import views
-from .site_api import bot_api
+from .site_api_v4 import bot_api
 
 urlpatterns = [
     path("", views.home, name="home"),
