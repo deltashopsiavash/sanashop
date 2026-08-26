@@ -129,7 +129,16 @@ SMTP_USE_TLS=1
 DEFAULT_FROM_EMAIL=$DEFAULT_FROM_EMAIL
 EOF
 chmod 600 .env
+printf '%s\n' "$SANASHOP_BOT_API_KEY" > /root/sanashop-bot-api-key.txt
+chmod 600 /root/sanashop-bot-api-key.txt
 ln -sf "$APP_DIR/scripts/sanashop" /usr/local/bin/sanashop
+
+echo
+echo "🔑 کلید اتصال ربات ساخته شد و ذخیره شد:"
+echo "$SANASHOP_BOT_API_KEY"
+echo "بازیابی بعدی: sudo sanashop bot-key"
+echo "فایل پشتیبان کلید: /root/sanashop-bot-api-key.txt"
+echo
 
 echo "در حال بررسی تنظیم Caddy..."
 docker compose run --rm --no-deps -T caddy caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile </dev/null
@@ -175,8 +184,9 @@ echo "🌐 سایت: https://$DOMAIN"
 echo "👤 پنل وب: https://$DOMAIN/admin/"
 echo "🔒 API مدیریت فقط برای IP سرور ربات باز است: $BOT_SERVER_IP"
 echo
-echo "🔑 کلید اتصال ربات (این مقدار را در ربات وارد کن):"
+echo "🔑 کلید اتصال ربات:"
 echo "$SANASHOP_BOT_API_KEY"
+echo "برای دیدن دوباره: sudo sanashop bot-key"
 echo
-echo "اگر SSL یا DNS هنوز آماده نباشد، نصب متوقف نمی‌شود؛ وضعیت Caddy را با این دستور ببین:"
+echo "اگر SSL یا DNS هنوز آماده نباشد، وضعیت Caddy را با این دستور ببین:"
 echo "cd $APP_DIR && docker compose logs -f caddy"
