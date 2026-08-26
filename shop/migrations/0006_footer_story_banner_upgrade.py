@@ -53,6 +53,23 @@ class Migration(migrations.Migration):
     dependencies = [("shop", "0005_checkout_reservations_bot_events")]
 
     operations = [
+        migrations.AlterField(
+            model_name="orderstatusevent",
+            name="status",
+            field=models.CharField(
+                choices=[
+                    ("pending", "در انتظار پرداخت"),
+                    ("review", "در انتظار تایید رسید"),
+                    ("rejected", "رسید رد شده"),
+                    ("paid", "پرداخت‌شده"),
+                    ("processing", "در حال آماده‌سازی"),
+                    ("shipped", "ارسال‌شده"),
+                    ("delivered", "تحویل‌شده"),
+                    ("cancelled", "لغوشده"),
+                ],
+                max_length=16,
+            ),
+        ),
         migrations.CreateModel(
             name="FooterSetting",
             fields=[
