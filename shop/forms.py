@@ -117,6 +117,17 @@ class CheckoutForm(forms.ModelForm):
 
     def __init__(self, *args, store_settings=None, **kwargs):
         super().__init__(*args, **kwargs)
+        if not self.is_bound:
+            email = (self.initial.get("email") or "").strip().lower()
+            if email:
+                user = User.objects.filter(email__iexact=email).first()
+                if user:
+                    full_name = f"{user.first_name} {user.last_name}".strip()
+                    if full_name:
+                        self.initial["full_name"] = full_name
+                    profile = CustomerProfile.objects.filter(user=user).first()
+                    if profile and profile.phone:
+                        self.initial["mobile"] = profile.phone
         self.fields["full_name"].label = "نام و نام خانوادگی"
         self.fields["mobile"].label = "شماره همراه"
         self.fields["email"].label = "ایمیل (اختیاری)"
