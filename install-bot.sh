@@ -75,7 +75,7 @@ Wants=network-online.target
 Type=simple
 WorkingDirectory=$APP_DIR
 EnvironmentFile=/etc/sanashop-bot.env
-ExecStart=$APP_DIR/.venv/bin/python $APP_DIR/external_bot_v6.py
+ExecStart=$APP_DIR/.venv/bin/python $APP_DIR/external_bot_v7.py
 Restart=always
 RestartSec=3
 User=root
@@ -95,8 +95,8 @@ if ! systemctl is-active --quiet sanashop-bot; then
 fi
 
 echo
-echo "✅ ربات خارجی v6 نصب و اتصال Telegram تست شد."
+echo "✅ ربات خارجی v7 نصب و اتصال Telegram تست شد."
 echo "✅ اتصال سایت‌ها دارای keep-alive، retry و backoff خودکار است."
-echo "✅ اعلان سفارش/رسید هر سایت از API همان سایت دریافت می‌شود."
+echo "✅ مدیریت کامل مشتری، سفارش، رسید، قوانین و اعلان‌های سفارش فعال است."
 echo "وضعیت: systemctl status sanashop-bot"
 echo "لاگ:    journalctl -u sanashop-bot -f"
