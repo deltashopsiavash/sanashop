@@ -23,11 +23,15 @@ SMTP_USER="${SMTP_USER:-}"
 SMTP_PASSWORD="${SMTP_PASSWORD:-}"
 DEFAULT_FROM_EMAIL="${DEFAULT_FROM_EMAIL:-}"
 
+has_tty() {
+  tty -s 2>/dev/null < /dev/tty
+}
+
 read_value() {
   local key="$1" prompt="$2" default="${3:-}" secret="${4:-0}" current value
   current="${!key:-}"
   value="$current"
-  if [[ -z "$value" && -r /dev/tty ]]; then
+  if [[ -z "$value" ]] && has_tty; then
     if [[ "$secret" == "1" ]]; then
       read -r -s -p "$prompt" value < /dev/tty
       echo > /dev/tty
