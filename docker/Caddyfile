@@ -13,11 +13,10 @@
     -Server
   }
 
-  @blockedBotApi {
-    path /api/bot/v1/
-    not remote_ip {$BOT_SERVER_IP}
-  }
-  respond @blockedBotApi "Forbidden" 403
+  # مدیریت ربات فقط از داخل SSH و مستقیماً روی Django انجام می‌شود.
+  # API مدیریتی از اینترنت عمومی قابل دسترسی نیست.
+  @botApi path /api/bot/v1/
+  respond @botApi "Not found" 404
 
   handle_path /static/* {
     root * /srv/static
