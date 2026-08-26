@@ -76,23 +76,9 @@ export DEBIAN_FRONTEND=noninteractive
 apt-get update
 apt-get install -y ca-certificates curl git openssl
 
-PUBLIC_IPV4="$(curl -4 -fsS --max-time 8 https://api.ipify.org 2>/dev/null || true)"
-DNS_IPV4="$(getent ahostsv4 "$DOMAIN" 2>/dev/null | awk '{print $1}' | sort -u | head -n1 || true)"
-if [[ -n "$PUBLIC_IPV4" && -n "$DNS_IPV4" && "$DNS_IPV4" != "$PUBLIC_IPV4" ]]; then
-  echo "❌ DNS دامنه به این سرور ایران اشاره نمی‌کند."
-  echo "IP این سرور: $PUBLIC_IPV4"
-  echo "A Record فعلی دامنه: $DNS_IPV4"
-  echo "ابتدا رکورد A دامنه را مستقیم روی IP این سرور قرار بده و دوباره نصب را اجرا کن."
-  exit 1
-fi
-
-DNS_IPV6="$(getent ahostsv6 "$DOMAIN" 2>/dev/null | awk '$1 ~ /:/ {print $1}' | sort -u | head -n1 || true)"
-PUBLIC_IPV6="$(curl -6 -fsS --max-time 5 https://api64.ipify.org 2>/dev/null || true)"
-if [[ -n "$DNS_IPV6" && ( -z "$PUBLIC_IPV6" || "$DNS_IPV6" != "$PUBLIC_IPV6" ) ]]; then
-  echo "❌ دامنه یک رکورد AAAA دارد که با IPv6 این سرور هماهنگ نیست: $DNS_IPV6"
-  echo "اگر IPv6 روی سرور نداری، رکورد AAAA دامنه را حذف کن و دوباره نصب را اجرا کن."
-  exit 1
-fi
+# عمداً هیچ بررسی یا مقایسه‌ای بین DNS دامنه و IP عمومی سرور انجام نمی‌شود.
+# دامنه می‌تواند پشت CDN/Proxy/DNS واسط باشد. Caddy در زمان اجرا وضعیت واقعی HTTPS را مدیریت می‌کند.
+echo "✅ اطلاعات دامنه دریافت شد؛ بررسی اجباری A/AAAA انجام نمی‌شود."
 
 if ! command -v docker >/dev/null 2>&1; then
   curl -fsSL https://get.docker.com | sh
@@ -105,7 +91,7 @@ if command -v ufw >/dev/null 2>&1 && ufw status 2>/dev/null | grep -q "Status: a
 fi
 
 if [[ -e "$APP_DIR" ]]; then
-  echo "مسیر $APP_DIR از قبل وجود دارد. اگر سرور خام است ابتدا آن را حذف کنید: rm -rf $APP_DIR"
+  echo "مسیر $APP_DIR از قبل وجود دارد. اگر نصب قبلی ناقص بوده و اطلاعاتی داخلش نداری، آن را حذف کن: rm -rf $APP_DIR"
   exit 1
 fi
 
@@ -194,5 +180,5 @@ echo
 echo "🔑 کلید اتصال ربات (این مقدار را در ربات وارد کن):"
 echo "$SANASHOP_BOT_API_KEY"
 echo
-echo "اگر SSL چند ثانیه زمان خواست، وضعیت را با این دستور ببین:"
+echo "اگر SSL یا DNS هنوز آماده نباشد، نصب متوقف نمی‌شود؛ وضعیت Caddy را با این دستور ببین:"
 echo "cd $APP_DIR && docker compose logs -f caddy"
