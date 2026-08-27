@@ -72,10 +72,10 @@ class DistributionV10Tests(TestCase):
         self.assertNotIn("امکانات نسخه فعلی", text)
         self.assertNotIn("Storefront V2", text)
 
-    def test_bot_installers_run_v14_and_clean_stale_pollers(self):
+    def test_bot_installers_run_v15_and_clean_stale_pollers(self):
         for filename in ("install-bot.sh", "update-bot.sh"):
             text = (Path(settings.BASE_DIR) / filename).read_text(encoding="utf-8")
-            self.assertIn("external_bot_v14.py", text)
+            self.assertIn("external_bot_v15.py", text)
             self.assertIn("pkill -TERM", text)
             self.assertIn("runtime.lock", text)
 
