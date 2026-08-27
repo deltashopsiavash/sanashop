@@ -1,0 +1,22 @@
+/* SanaShop v9: dedicated header phone state + richer contact sheet. */
+.header-phone-icon.is-muted{opacity:.32;filter:grayscale(1);pointer-events:none;box-shadow:none!important}
+.contact-links-v9{display:grid;gap:10px;text-align:right}
+.contact-links-v9 a{display:flex!important;align-items:center!important;justify-content:space-between!important;gap:14px!important;min-height:62px;padding:10px 12px!important;border:1px solid #e7ebef!important;border-radius:16px!important;background:#fff!important;text-decoration:none!important;color:#202833!important;transition:transform .16s ease,border-color .16s ease,box-shadow .16s ease!important}
+.contact-links-v9 a:hover{transform:translateY(-1px);border-color:color-mix(in srgb,var(--brand) 34%,#e7ebef)!important;box-shadow:0 8px 24px rgba(20,38,63,.07)}
+.contact-row-copy{display:flex;flex:1;min-width:0;flex-direction:column;align-items:flex-start;justify-content:center;gap:3px;text-align:right}
+.contact-row-copy b{font-size:14px!important;line-height:1.5;color:#242c37}
+.contact-row-copy small{font-size:11px;line-height:1.5;color:#89919d;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.contact-row-icon{width:42px;height:42px;flex:0 0 42px;border-radius:13px;display:grid;place-items:center;background:color-mix(in srgb,var(--brand) 9%,#fff);color:var(--brand)}
+.contact-row-icon svg{width:23px;height:23px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.contact-row-icon svg .fill-icon{fill:currentColor;stroke:none}
+.contact-social-row.platform-telegram .contact-row-icon svg path:first-child,.contact-social-row.platform-facebook .contact-row-icon svg path:first-child{fill:currentColor;stroke:currentColor}
+.contact-social-row.platform-youtube .contact-row-icon svg path:last-child{fill:currentColor}
+.contact-phone-row .contact-row-icon{background:color-mix(in srgb,var(--brand) 12%,#fff)}
+
+@media(max-width:760px){
+  .site-header .header-phone-icon.is-muted{opacity:.28!important;background:#f5f6f7!important;border-color:#edf0f2!important;color:#9aa1aa!important}
+  .contact-dialog-card{padding:26px 15px 16px!important}
+  .contact-links-v9{gap:9px}
+  .contact-links-v9 a{min-height:60px!important;border-radius:15px!important;padding:9px 11px!important}
+  .contact-row-icon{width:40px;height:40px;flex-basis:40px;border-radius:12px}
+}
