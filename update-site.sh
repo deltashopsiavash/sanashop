@@ -18,21 +18,38 @@ command -v docker >/dev/null 2>&1 || { echo "❌ Docker نصب نیست."; exit 
 
 cd "$APP_DIR"
 OLD_COMMIT="$(git rev-parse HEAD)"
+
+echo "[1/9] دریافت آخرین نسخه از GitHub..."
 git remote set-url origin "$REPO_URL"
 git fetch --prune origin main
 git reset --hard origin/main
 printf '%s\n' "$OLD_COMMIT" > .last-version
 ln -sf "$APP_DIR/scripts/sanashop" /usr/local/bin/sanashop
 
+echo "[2/9] ساخت مجدد image سایت..."
 docker compose build --pull --no-cache web
+
+echo "[3/9] بالا آوردن دیتابیس..."
 docker compose up -d db
+
+echo "[4/9] بازسازی web و Caddy..."
 docker compose up -d --force-recreate --remove-orphans web caddy
 
-docker compose exec -T web python manage.py migrate --noinput
-docker compose exec -T web python manage.py collectstatic --noinput --clear
+echo "[5/9] بررسی و اعمال migrationهای دیتابیس..."
+docker compose exec -T web python manage.py migrate --noinput --verbosity 0
+echo "✅ دیتابیس آماده است."
+
+echo "[6/9] بروزرسانی فایل‌های static..."
+docker compose exec -T web python manage.py collectstatic --noinput --clear --verbosity 0
+echo "✅ فایل‌های static آماده‌اند."
+
+echo "[7/9] بررسی سلامت Django..."
 docker compose exec -T web python manage.py check
 
+echo "[8/9] اعتبارسنجی Caddy..."
 docker compose exec -T caddy caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
+
+echo "[9/9] راه‌اندازی مجدد Caddy..."
 docker compose restart caddy
 
 echo
