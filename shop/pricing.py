@@ -87,13 +87,16 @@ def set_amazing_price(product, value):
     if value == 0:
         promo.amazing_price = None
         product.is_amazing = False
-        product.save(update_fields=["is_amazing", "updated_at"])
+        product.amazing_until = None
+        product.save(update_fields=["is_amazing", "amazing_until", "updated_at"])
     elif value >= int(product.price):
         raise ValueError("قیمت شگفت‌انگیز باید از قیمت اصلی کمتر باشد.")
     else:
         promo.amazing_price = value
         product.is_amazing = True
-        product.save(update_fields=["is_amazing", "updated_at"])
+        # A newly entered amazing price must not inherit a stale/expired deadline.
+        product.amazing_until = None
+        product.save(update_fields=["is_amazing", "amazing_until", "updated_at"])
     promo.save(update_fields=["amazing_price", "updated_at"])
     return promo
 
@@ -111,6 +114,7 @@ def normalize_promotions(product):
         changed.append("amazing_price")
         if product.is_amazing:
             product.is_amazing = False
-            product.save(update_fields=["is_amazing", "updated_at"])
+            product.amazing_until = None
+            product.save(update_fields=["is_amazing", "amazing_until", "updated_at"])
     if changed:
         promo.save(update_fields=[*changed, "updated_at"])
