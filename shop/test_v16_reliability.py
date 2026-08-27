@@ -13,7 +13,7 @@ from django.urls import reverse
 
 from .extra_models import CustomerProfile
 from .iran_locations import province_city_map
-from .models import Category, Order, PaymentReceipt, Product, ProductImage, SiteSetting
+from .models import BotEvent, Category, Order, PaymentReceipt, Product, ProductImage, SiteSetting
 
 User = get_user_model()
 
@@ -150,6 +150,30 @@ class V16CheckoutPaymentTests(TestCase):
         response = self.client.post(reverse("cart_add", args=[self.product.id]), {"quantity": 1})
         self.assertEqual(response.status_code, 302)
 
+    def make_zarinpal_order(self, authority):
+        self.store.payment_mode = "zarinpal"
+        self.store.zarinpal_merchant_id = "00000000-0000-0000-0000-000000000000"
+        self.store.save(update_fields=["payment_mode", "zarinpal_merchant_id", "updated_at"])
+        order = Order.objects.create(
+            customer=self.user,
+            full_name="خریدار تست",
+            mobile="09121234567",
+            email=self.user.email,
+            province=self.province,
+            city=self.city,
+            postal_code="1234567890",
+            address="آدرس",
+            subtotal=150000,
+            total=150000,
+            payment_method="zarinpal",
+            authority=authority,
+            status="pending",
+        )
+        session = self.client.session
+        session["order_code"] = order.code
+        session.save()
+        return order
+
     def test_card_checkout_creates_invoice_and_reserves_stock(self):
         self.add_to_cart()
         response = self.client.post(reverse("checkout"), self.checkout_payload())
@@ -200,31 +224,25 @@ class V16CheckoutPaymentTests(TestCase):
         self.assertIn(str(self.product.id), self.client.session.get("cart", {}))
 
     def test_transient_zarinpal_verify_error_does_not_cancel_order_or_release_stock(self):
-        self.store.payment_mode = "zarinpal"
-        self.store.zarinpal_merchant_id = "00000000-0000-0000-0000-000000000000"
-        self.store.save(update_fields=["payment_mode", "zarinpal_merchant_id", "updated_at"])
-        order = Order.objects.create(
-            customer=self.user,
-            full_name="خریدار تست",
-            mobile="09121234567",
-            email=self.user.email,
-            province=self.province,
-            city=self.city,
-            postal_code="1234567890",
-            address="آدرس",
-            subtotal=150000,
-            total=150000,
-            payment_method="zarinpal",
-            authority="A000000000000000000000000000000001",
-            status="pending",
-        )
-        session = self.client.session
-        session["order_code"] = order.code
-        session.save()
-        with patch("shop.checkout_views_v16.zarinpal_verify", side_effect=RuntimeError("temporary verify failure")):
+        order = self.make_zarinpal_order("A000000000000000000000000000000001")
+        with patch("shop.checkout_views_v16._zarinpal_verify_v16", side_effect=RuntimeError("temporary verify failure")):
             response = self.client.get(reverse("zarinpal_callback"), {"Authority": order.authority, "Status": "OK"})
         self.assertRedirects(response, reverse("order_status", args=[order.code]))
         order.refresh_from_db()
         self.assertEqual(order.status, "pending")
         self.assertFalse(order.reservation_released)
+        self.assertTrue(order.reservation_active)
         self.assertIn("نیازمند بررسی پرداخت زرین‌پال", order.admin_note)
+        self.assertTrue(BotEvent.objects.filter(kind="payment_verification_pending").exists())
+        self.assertFalse(BotEvent.objects.filter(kind="payment_failed").exists())
+
+    def test_non_success_verify_after_ok_callback_is_pending_not_failed(self):
+        order = self.make_zarinpal_order("A000000000000000000000000000000002")
+        with patch("shop.checkout_views_v16._zarinpal_verify_v16", return_value=False):
+            response = self.client.get(reverse("zarinpal_callback"), {"Authority": order.authority, "Status": "OK"})
+        self.assertRedirects(response, reverse("order_status", args=[order.code]))
+        order.refresh_from_db()
+        self.assertEqual(order.status, "pending")
+        self.assertTrue(order.reservation_active)
+        self.assertTrue(BotEvent.objects.filter(kind="payment_verification_pending").exists())
+        self.assertFalse(BotEvent.objects.filter(kind="payment_failed").exists())
