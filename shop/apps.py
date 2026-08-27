@@ -25,3 +25,10 @@ class ShopConfig(AppConfig):
         }
         for field_name, value in stable_defaults.items():
             SiteSetting._meta.get_field(field_name).default = value
+
+        # Media URLs must never point at a freshly replaced file while the old bytes
+        # are still cached. Centralized signals remove obsolete files only after the
+        # database commit succeeds, and also clean files when rows are deleted.
+        from .media_hygiene import register_media_hygiene
+
+        register_media_hygiene()

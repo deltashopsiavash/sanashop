@@ -29,7 +29,11 @@
 
   handle_path /media/* {
     root * /srv/media
-    header Cache-Control "public, max-age=604800"
+    # Product/logo/category/story media is mutable. Never keep an old upload for days.
+    # New replacements also receive unique URLs, while this header makes old browser
+    # caches revalidate immediately if a legacy URL is encountered.
+    header Cache-Control "public, max-age=0, must-revalidate"
+    header Pragma "no-cache"
     file_server
   }
 
