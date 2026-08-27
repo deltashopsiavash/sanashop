@@ -1,14 +1,14 @@
-{% load store_filters %}<article class="product-card product-card-clickable">
+{% load store_filters %}{% with promo=product|promotion_label current=product|effective_price %}<article class="product-card product-card-clickable">
   <a class="product-card-hitarea" href="{% url 'product_detail' product.slug %}" aria-label="مشاهده جزئیات {{ product.name }}"></a>
   <a class="product-image" href="{% url 'product_detail' product.slug %}">
     {% if product.image %}<img src="{{ product.image.url }}" alt="{{ product.name }}" loading="lazy">{% else %}<div class="image-placeholder"><span>✦</span><small>تصویر محصول</small></div>{% endif %}
-    {% if product.is_amazing %}<span class="sale-badge">شگفت‌انگیز</span>{% elif product.compare_at_price and product.compare_at_price > product.price %}<span class="sale-badge">پیشنهاد ویژه</span>{% endif %}
+    {% if promo %}<span class="sale-badge promotion-badge {% if promo == 'شگفت‌انگیز' %}is-amazing{% else %}is-discount{% endif %}">{{ promo }}</span>{% endif %}
   </a>
   <div class="product-body"><small>{{ product.category.name }}</small><h3><a href="{% url 'product_detail' product.slug %}">{{ product.name }}</a></h3>
     <div class="price-row product-prices">
-      {% if product.compare_at_price and product.compare_at_price > product.price %}<span class="old-price"><small>قیمت قبلی</small><del>{{ product.compare_at_price|money }} تومان</del></span>{% endif %}
-      <span class="new-price"><small>{% if product.compare_at_price and product.compare_at_price > product.price %}قیمت جدید{% else %}قیمت{% endif %}</small><strong>{{ product.price|money }} <span>تومان</span></strong></span>
+      {% if promo %}<span class="old-price"><small>قیمت اصلی</small><del>{{ product.price|money }} تومان</del></span>{% endif %}
+      <span class="new-price"><small>{% if promo == 'شگفت‌انگیز' %}قیمت شگفت‌انگیز{% elif promo %}قیمت با تخفیف{% else %}قیمت{% endif %}</small><strong>{{ current|money }} <span>تومان</span></strong></span>
     </div>
     {% if product.available %}<form class="product-card-form" method="post" action="{% url 'cart_add' product.id %}">{% csrf_token %}<input type="hidden" name="next" value="{{ request.path }}"><button class="btn btn-secondary btn-block">افزودن به سبد</button></form>{% else %}<button class="btn btn-disabled btn-block product-card-action" disabled>ناموجود</button>{% endif %}
   </div>
-</article>
+</article>{% endwith %}
