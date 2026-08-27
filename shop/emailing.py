@@ -37,6 +37,7 @@ def send_password_reset_email(request, user):
         email_template_name="registration/password_reset_email.txt",
         html_email_template_name="emails/password_reset.html",
         subject_template_name="registration/password_reset_subject.txt",
+        extra_email_context={"store": SiteSetting.load()},
     )
 
 
