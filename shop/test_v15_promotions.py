@@ -108,15 +108,17 @@ class ProductPromotionApiTests(TestCase):
         self.assertEqual(response.json()["data"]["effective_price"], 200000)
         self.assertEqual(response.json()["data"]["promotion_label"], "")
 
-    def test_bot_v15_and_installers_are_selected(self):
+    def test_promotion_features_survive_v16_selection(self):
         root = Path(settings.BASE_DIR)
-        bot = (root / "external_bot_v15.py").read_text(encoding="utf-8")
-        self.assertIn("v15_discount_price", bot)
-        self.assertIn("v15_amazing_price", bot)
-        self.assertIn("قیمت اصلی", bot)
-        self.assertIn("تخفیف", bot)
+        v15_bot = (root / "external_bot_v15.py").read_text(encoding="utf-8")
+        self.assertIn("v15_discount_price", v15_bot)
+        self.assertIn("v15_amazing_price", v15_bot)
+        self.assertIn("قیمت اصلی", v15_bot)
+        self.assertIn("تخفیف", v15_bot)
+        v16_bot = (root / "external_bot_v16.py").read_text(encoding="utf-8")
+        self.assertIn("import external_bot_v15 as v15", v16_bot)
         for filename in ("install-bot.sh", "update-bot.sh"):
-            self.assertIn("external_bot_v15.py", (root / filename).read_text(encoding="utf-8"))
+            self.assertIn("external_bot_v16.py", (root / filename).read_text(encoding="utf-8"))
 
     def test_promotion_model_is_registered(self):
         self.assertEqual(ProductPromotion._meta.app_label, "shop")
