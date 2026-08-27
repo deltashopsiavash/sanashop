@@ -53,7 +53,7 @@ Wants=network-online.target
 Type=simple
 WorkingDirectory=$APP_DIR
 EnvironmentFile=/etc/sanashop-bot.env
-ExecStart=$APP_DIR/.venv/bin/python $APP_DIR/external_bot_v13.py
+ExecStart=$APP_DIR/.venv/bin/python $APP_DIR/external_bot_v14.py
 Restart=always
 RestartSec=3
 User=root
@@ -81,9 +81,9 @@ if [[ "$BOT_PROCESSES" -gt 1 ]]; then
   exit 1
 fi
 
-echo "✅ ربات خارجی به نسخه v13 آپدیت شد."
-echo "✅ خطای یک بخش دیگر اتصال ذخیره‌شده سایت را از پنل خارج نمی‌کند."
-echo "✅ بکاپ روی نسخه قدیمی سایت پیام آپدیت می‌دهد و اتصال سایت حفظ می‌شود."
+echo "✅ ربات خارجی به نسخه v14 آپدیت شد."
+echo "✅ دکمه‌ها با پردازش هم‌زمان و connection pool بزرگ‌تر سریع‌تر پاسخ می‌دهند."
+echo "✅ خطای هر بخش اتصال ذخیره‌شده سایت را حذف نمی‌کند."
 echo "✅ اتصال‌های ذخیره‌شده، مدیرها و API Keyها در /var/lib/sanashop-bot حفظ شده‌اند."
 echo "وضعیت: systemctl status sanashop-bot --no-pager"
 echo "لاگ:    journalctl -u sanashop-bot -f"
