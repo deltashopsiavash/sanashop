@@ -60,8 +60,8 @@ SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 SECURE_CONTENT_TYPE_NOSNIFF = True
 X_FRAME_OPTIONS = "SAMEORIGIN"
 FILE_UPLOAD_MAX_MEMORY_SIZE = 12 * 1024 * 1024
-# Bot image/video uploads arrive as base64 JSON, so the HTTP body is larger than the original media file.
-DATA_UPLOAD_MAX_MEMORY_SIZE = 40 * 1024 * 1024
+# Bot image/video and encrypted backup restore payloads arrive as base64 JSON.
+DATA_UPLOAD_MAX_MEMORY_SIZE = 64 * 1024 * 1024
 LOGIN_URL = "login"
 LOGIN_REDIRECT_URL = "my_orders"
 LOGOUT_REDIRECT_URL = "home"
