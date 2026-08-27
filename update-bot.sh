@@ -21,7 +21,6 @@ fi
 
 stop_old_pollers() {
   systemctl stop sanashop-bot 2>/dev/null || true
-  # Stop manually-started SanaShop bot processes that are outside systemd.
   pkill -TERM -f "$APP_DIR/external_bot(_v[0-9]+)?\.py" 2>/dev/null || true
   sleep 2
   pkill -KILL -f "$APP_DIR/external_bot(_v[0-9]+)?\.py" 2>/dev/null || true
@@ -29,7 +28,6 @@ stop_old_pollers() {
 
 apt-get update
 apt-get install -y ca-certificates git python3 python3-venv procps
-
 stop_old_pollers
 
 cd "$APP_DIR"
@@ -55,7 +53,7 @@ Wants=network-online.target
 Type=simple
 WorkingDirectory=$APP_DIR
 EnvironmentFile=/etc/sanashop-bot.env
-ExecStart=$APP_DIR/.venv/bin/python $APP_DIR/external_bot_v11.py
+ExecStart=$APP_DIR/.venv/bin/python $APP_DIR/external_bot_v12.py
 Restart=always
 RestartSec=3
 User=root
@@ -83,13 +81,8 @@ if [[ "$BOT_PROCESSES" -gt 1 ]]; then
   exit 1
 fi
 
-if journalctl -u sanashop-bot --since "2 minutes ago" --no-pager 2>/dev/null | grep -q "terminated by other getUpdates request"; then
-  echo "⚠️ تلگرام هنوز یک poller دیگر با همین Bot Token می‌بیند."
-  echo "اگر نمونه دیگری روی سرور دیگری ندارید، Bot Token را در BotFather تعویض و /etc/sanashop-bot.env را به‌روز کنید."
-fi
-
-echo "✅ ربات خارجی به نسخه v11 آپدیت شد."
-echo "✅ فقط یک نمونه ربات روی این سرور اجازه اجرا دارد."
+echo "✅ ربات خارجی به نسخه v12 آپدیت شد."
+echo "✅ اتصال سایت در v12 مستقیم تست و در SQLite تأیید می‌شود."
 echo "✅ اتصال‌های ذخیره‌شده، مدیرها و API Keyها در /var/lib/sanashop-bot حفظ شده‌اند."
 echo "وضعیت: systemctl status sanashop-bot --no-pager"
 echo "لاگ:    journalctl -u sanashop-bot -f"
