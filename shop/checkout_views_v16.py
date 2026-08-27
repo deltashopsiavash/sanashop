@@ -1,11 +1,14 @@
 import logging
+from datetime import timedelta
 
+import httpx
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db import transaction
 from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
+from django.utils import timezone
 
 from .forms import CheckoutForm, ReceiptForm
 from .iran_locations import province_city_map
@@ -19,11 +22,11 @@ from .services import (
     send_receipt_to_telegram,
     set_order_status,
     zarinpal_request,
-    zarinpal_verify,
 )
 from .views import _cart_context
 
 logger = logging.getLogger(__name__)
+PAYMENT_REVIEW_HOURS = 24
 
 
 def _can_view_order(request, order):
@@ -43,6 +46,41 @@ def _clear_cart_after_invoice(request, order):
 
 def _render_checkout(request, totals, form):
     return render(request, "shop/checkout.html", {**totals, "form": form, "locations": province_city_map()})
+
+
+def _hold_reservation_for_payment_review(order):
+    """Keep possibly-paid Zarinpal orders from expiring while verification is reviewed."""
+    if order.stock_committed or order.reservation_released:
+        return
+    deadline = timezone.now() + timedelta(hours=PAYMENT_REVIEW_HOURS)
+    if not order.reservation_expires_at or order.reservation_expires_at < deadline:
+        order.reservation_expires_at = deadline
+        order.save(update_fields=["reservation_expires_at", "updated_at"])
+
+
+def _zarinpal_verify_v16(order):
+    """Verify without emitting a false payment_failed event for ambiguous responses."""
+    store = SiteSetting.load()
+    api = "https://sandbox.zarinpal.com/pg/v4/payment/verify.json" if store.zarinpal_sandbox else "https://payment.zarinpal.com/pg/v4/payment/verify.json"
+    response = httpx.post(
+        api,
+        json={
+            "merchant_id": store.zarinpal_merchant_id,
+            "amount": order.total * 10,
+            "authority": order.authority,
+        },
+        timeout=20,
+    )
+    response.raise_for_status()
+    data = response.json().get("data") or {}
+    if int(data.get("code", 0)) not in (100, 101):
+        return False
+
+    order.payment_ref_id = str(data.get("ref_id", ""))
+    order.save(update_fields=["payment_ref_id", "updated_at"])
+    set_order_status(order, "paid", "پرداخت آنلاین تأیید شد")
+    queue_bot_event("payment_success", order_event_payload(order))
+    return True
 
 
 @login_required
@@ -170,8 +208,13 @@ def zarinpal_callback(request):
         messages.error(request, "پرداخت انجام نشد یا توسط شما لغو شد.")
         return redirect("order_status", code=order.code)
 
+    # The customer reached our callback with Status=OK. Hold the reserved stock long
+    # enough for safe verification/manual review so a transient gateway outage cannot
+    # turn a possibly-paid order into an expired invoice a few minutes later.
+    _hold_reservation_for_payment_review(order)
+
     try:
-        verified = zarinpal_verify(order)
+        verified = _zarinpal_verify_v16(order)
     except Exception as exc:
         # A temporary network/API error after the customer returns from Zarinpal does
         # not prove payment failed. Never release stock or cancel a possibly-paid order.
@@ -188,8 +231,8 @@ def zarinpal_callback(request):
     if verified:
         messages.success(request, f"پرداخت با موفقیت انجام شد. کد پیگیری: {order.payment_ref_id}")
     else:
-        # Non-success verify responses can also be ambiguous. Keep the reservation
-        # instead of destroying a possibly paid order; expiry/manager review handles it safely.
+        # A non-success verify response after Status=OK can be ambiguous. Do not emit a
+        # contradictory payment_failed event; keep the order reserved for manager review.
         order.admin_note = ((order.admin_note or "") + "\nپاسخ تأیید زرین‌پال موفق نبود؛ نیازمند بررسی.").strip()
         order.save(update_fields=["admin_note", "updated_at"])
         queue_bot_event("payment_verification_pending", order_event_payload(order))
