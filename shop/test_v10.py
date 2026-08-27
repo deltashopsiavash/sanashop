@@ -1,4 +1,5 @@
 import base64
+import hashlib
 import io
 import json
 import os
@@ -39,7 +40,7 @@ class BackupApiV10Tests(TestCase):
         self.assertEqual(status["interval_minutes"], 60)
         self.assertTrue(status["due"])
 
-    def test_manual_backup_returns_valid_sanabackup(self):
+    def test_manual_backup_is_full_integrity_checked_snapshot(self):
         response = self.api("backup_create", {"label": "test"})
         self.assertEqual(response.status_code, 200)
         data = response.json()["data"]
@@ -49,6 +50,16 @@ class BackupApiV10Tests(TestCase):
         with zipfile.ZipFile(io.BytesIO(raw)) as archive:
             self.assertIn("manifest.json", archive.namelist())
             self.assertIn("database.json", archive.namelist())
+            manifest = json.loads(archive.read("manifest.json"))
+            database_raw = archive.read("database.json")
+            self.assertEqual(manifest["schema_version"], 2)
+            self.assertEqual(manifest["backup_kind"], "full-site")
+            self.assertIn("all_application_database_rows", manifest["includes"])
+            self.assertIn("all_uploaded_media", manifest["includes"])
+            self.assertEqual(manifest["database_sha256"], hashlib.sha256(database_raw).hexdigest())
+            self.assertIn("model_counts", manifest)
+            self.assertIn("media_files", manifest)
+            self.assertFalse(manifest["deployment_secrets_included"])
 
 
 class DistributionV10Tests(TestCase):
@@ -61,10 +72,10 @@ class DistributionV10Tests(TestCase):
         self.assertNotIn("امکانات نسخه فعلی", text)
         self.assertNotIn("Storefront V2", text)
 
-    def test_bot_installers_run_v13_and_clean_stale_pollers(self):
+    def test_bot_installers_run_v14_and_clean_stale_pollers(self):
         for filename in ("install-bot.sh", "update-bot.sh"):
             text = (Path(settings.BASE_DIR) / filename).read_text(encoding="utf-8")
-            self.assertIn("external_bot_v13.py", text)
+            self.assertIn("external_bot_v14.py", text)
             self.assertIn("pkill -TERM", text)
             self.assertIn("runtime.lock", text)
 
@@ -85,6 +96,24 @@ class DistributionV10Tests(TestCase):
         self.assertIn("اتصال سایت از ربات حذف نشده", text)
         self.assertIn("اتصال ذخیره‌شده سایت دست‌نخورده باقی ماند", text)
         self.assertNotIn("DELETE FROM sites", text)
+
+    def test_v14_processes_buttons_concurrently_and_avoids_backup_pre_ping(self):
+        text = (Path(settings.BASE_DIR) / "external_bot_v14.py").read_text(encoding="utf-8")
+        self.assertIn(".concurrent_updates(16)", text)
+        self.assertIn(".connection_pool_size(32)", text)
+        self.assertIn("await v12.callback", text)
+        self.assertNotIn("_backup_version_guard", text)
+        self.assertIn("بکاپ کامل صفر تا صد", text)
+
+    def test_full_backup_replaces_media_and_covers_all_application_data(self):
+        text = (Path(settings.BASE_DIR) / "shop" / "backup.py").read_text(encoding="utf-8")
+        self.assertIn("SCHEMA_VERSION = 2", text)
+        self.assertIn('"dumpdata"', text)
+        self.assertIn("exclude=DATABASE_EXCLUDES", text)
+        self.assertIn("_collect_media_manifest", text)
+        self.assertIn("database_sha256", text)
+        self.assertIn("_clear_media", text)
+        self.assertIn("_restore_media(archive, replace=True)", text)
 
     def test_site_updater_preserves_env_and_forces_web_rebuild(self):
         text = (Path(settings.BASE_DIR) / "update-site.sh").read_text(encoding="utf-8")
