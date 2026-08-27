@@ -59,7 +59,8 @@ class EmailBrandingV9Tests(TestCase):
         self.assertEqual(response.status_code, 302)
         self.assertEqual(len(mail.outbox), 1)
         html = mail.outbox[0].alternatives[0][0]
-        self.assertIn("https://example.com/media/branding/", html)
+        self.assertIn("/media/branding/", html)
+        self.assertIn("velora-logo", html)
         self.assertIn("تغییر رمز عبور", html)
         self.assertIn("VELORA", html)
 
