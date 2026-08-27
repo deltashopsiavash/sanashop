@@ -61,10 +61,17 @@ class DistributionV10Tests(TestCase):
         self.assertNotIn("امکانات نسخه فعلی", text)
         self.assertNotIn("Storefront V2", text)
 
-    def test_bot_installers_run_v10(self):
+    def test_bot_installers_run_v11_and_clean_stale_pollers(self):
         for filename in ("install-bot.sh", "update-bot.sh"):
             text = (Path(settings.BASE_DIR) / filename).read_text(encoding="utf-8")
-            self.assertIn("external_bot_v10.py", text)
+            self.assertIn("external_bot_v11.py", text)
+            self.assertIn("pkill -TERM", text)
+            self.assertIn("runtime.lock", text)
+
+    def test_v11_entrypoint_uses_single_instance_guard(self):
+        text = (Path(settings.BASE_DIR) / "external_bot_v11.py").read_text(encoding="utf-8")
+        self.assertIn("acquire_single_instance_lock", text)
+        self.assertIn("v10.run()", text)
 
     def test_site_updater_preserves_env_and_forces_web_rebuild(self):
         text = (Path(settings.BASE_DIR) / "update-site.sh").read_text(encoding="utf-8")
