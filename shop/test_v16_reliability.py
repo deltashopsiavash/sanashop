@@ -1,9 +1,11 @@
+import io
 import json
 import os
 import tempfile
 from pathlib import Path
 from unittest.mock import patch
 
+from PIL import Image
 from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import Client, TestCase, override_settings
@@ -174,7 +176,9 @@ class V16CheckoutPaymentTests(TestCase):
         response = self.client.post(reverse("checkout"), self.checkout_payload())
         order = Order.objects.get(customer=self.user)
         self.assertEqual(response.status_code, 302)
-        receipt = SimpleUploadedFile("receipt.jpg", b"receipt-image", content_type="image/jpeg")
+        image = io.BytesIO()
+        Image.new("RGB", (2, 2), "white").save(image, format="PNG")
+        receipt = SimpleUploadedFile("receipt.png", image.getvalue(), content_type="image/png")
         response = self.client.post(reverse("card_payment", args=[order.code]), {"image": receipt})
         self.assertRedirects(response, reverse("order_status", args=[order.code]))
         order.refresh_from_db()
@@ -214,8 +218,9 @@ class V16CheckoutPaymentTests(TestCase):
             authority="A000000000000000000000000000000001",
             status="pending",
         )
-        self.client.session["order_code"] = order.code
-        self.client.session.save()
+        session = self.client.session
+        session["order_code"] = order.code
+        session.save()
         with patch("shop.checkout_views_v16.zarinpal_verify", side_effect=RuntimeError("temporary verify failure")):
             response = self.client.get(reverse("zarinpal_callback"), {"Authority": order.authority, "Status": "OK"})
         self.assertRedirects(response, reverse("order_status", args=[order.code]))
