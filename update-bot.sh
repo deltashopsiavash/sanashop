@@ -53,7 +53,7 @@ Wants=network-online.target
 Type=simple
 WorkingDirectory=$APP_DIR
 EnvironmentFile=/etc/sanashop-bot.env
-ExecStart=$APP_DIR/.venv/bin/python $APP_DIR/external_bot_v15.py
+ExecStart=$APP_DIR/.venv/bin/python $APP_DIR/external_bot_v16.py
 Restart=always
 RestartSec=3
 User=root
@@ -81,7 +81,8 @@ if [[ "$BOT_PROCESSES" -gt 1 ]]; then
   exit 1
 fi
 
-echo "✅ ربات خارجی به نسخه v15 آپدیت شد."
+echo "✅ ربات خارجی به نسخه v16 آپدیت شد."
+echo "✅ حذف کامل دسته و تعویض مطمئن عکس دسته فعال است."
 echo "✅ قیمت اصلی، تخفیف و شگفت‌انگیز مستقل مدیریت می‌شوند."
 echo "✅ دکمه‌ها با پردازش هم‌زمان و connection pool بزرگ‌تر سریع پاسخ می‌دهند."
 echo "✅ اتصال‌های ذخیره‌شده، مدیرها و API Keyها در /var/lib/sanashop-bot حفظ شده‌اند."
