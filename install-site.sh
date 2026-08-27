@@ -90,6 +90,42 @@ if command -v ufw >/dev/null 2>&1 && ufw status 2>/dev/null | grep -q "Status: a
   ufw allow 443/tcp >/dev/null || true
 fi
 
+# Removing /opt/sanashop does NOT remove Docker named volumes. Without this guard,
+# a user asking for a completely fresh install could silently get the previous
+# database and media back, including old product/category/logo images.
+if [[ ! -e "$APP_DIR" ]]; then
+  stale_volumes=()
+  for volume in sanashop_postgres_data sanashop_media_data sanashop_static_data sanashop_caddy_data sanashop_caddy_config; do
+    if docker volume inspect "$volume" >/dev/null 2>&1; then
+      stale_volumes+=("$volume")
+    fi
+  done
+  if (( ${#stale_volumes[@]} > 0 )); then
+    echo
+    echo "⚠️ داده‌های Docker از نصب قبلی SanaShop پیدا شد:"
+    printf '  - %s\n' "${stale_volumes[@]}"
+    echo "اگر ادامه بدهیم بدون پاکسازی، دیتابیس و عکس‌های قدیمی دوباره استفاده می‌شوند."
+    confirm=""
+    if [[ "${SANASHOP_FRESH_WIPE:-0}" == "1" ]]; then
+      confirm="DELETE"
+    elif [[ -r /dev/tty ]]; then
+      read -r -p "برای نصب واقعاً خام و حذف کامل داده‌های قبلی، دقیقاً DELETE را بنویسید؛ برای توقف Enter بزنید: " confirm < /dev/tty || true
+    fi
+    if [[ "$confirm" != "DELETE" ]]; then
+      echo "نصب متوقف شد و هیچ volume قدیمی پاک نشد."
+      exit 1
+    fi
+    old_containers="$(docker ps -aq --filter label=com.docker.compose.project=sanashop || true)"
+    if [[ -n "$old_containers" ]]; then
+      docker rm -f $old_containers >/dev/null 2>&1 || true
+    fi
+    for volume in "${stale_volumes[@]}"; do
+      docker volume rm -f "$volume" >/dev/null
+    done
+    echo "✅ دیتابیس، media، static و داده Caddy نصب قبلی پاک شدند؛ نصب واقعاً خام ادامه پیدا می‌کند."
+  fi
+fi
+
 if [[ -e "$APP_DIR" ]]; then
   echo "مسیر $APP_DIR از قبل وجود دارد. اگر نصب قبلی ناقص بوده و اطلاعاتی داخلش نداری، آن را حذف کن: rm -rf $APP_DIR"
   exit 1
