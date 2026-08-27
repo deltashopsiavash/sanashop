@@ -1,0 +1,1 @@
+v17 fixes PostgreSQL invoice creation by avoiding SELECT FOR UPDATE across the optional ProductPromotion reverse OneToOne join. The Product row is locked alone and the optional promotion is read separately for pricing.
