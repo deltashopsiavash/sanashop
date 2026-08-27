@@ -19,8 +19,18 @@ if [[ ! -d "$APP_DIR/.git" ]]; then
   exit 1
 fi
 
+stop_old_pollers() {
+  systemctl stop sanashop-bot 2>/dev/null || true
+  # Stop manually-started SanaShop bot processes that are outside systemd.
+  pkill -TERM -f "$APP_DIR/external_bot(_v[0-9]+)?\.py" 2>/dev/null || true
+  sleep 2
+  pkill -KILL -f "$APP_DIR/external_bot(_v[0-9]+)?\.py" 2>/dev/null || true
+}
+
 apt-get update
-apt-get install -y ca-certificates git python3 python3-venv
+apt-get install -y ca-certificates git python3 python3-venv procps
+
+stop_old_pollers
 
 cd "$APP_DIR"
 git remote set-url origin "$REPO_URL"
@@ -32,6 +42,8 @@ if [[ ! -x .venv/bin/python ]]; then
 fi
 .venv/bin/pip install --upgrade pip
 .venv/bin/pip install python-telegram-bot==22.3 httpx==0.28.1
+install -d -m 700 /var/lib/sanashop-bot
+rm -f /var/lib/sanashop-bot/runtime.lock
 
 cat > /etc/systemd/system/sanashop-bot.service <<EOF
 [Unit]
@@ -43,7 +55,7 @@ Wants=network-online.target
 Type=simple
 WorkingDirectory=$APP_DIR
 EnvironmentFile=/etc/sanashop-bot.env
-ExecStart=$APP_DIR/.venv/bin/python $APP_DIR/external_bot_v10.py
+ExecStart=$APP_DIR/.venv/bin/python $APP_DIR/external_bot_v11.py
 Restart=always
 RestartSec=3
 User=root
@@ -56,7 +68,7 @@ EOF
 systemctl daemon-reload
 systemctl enable sanashop-bot >/dev/null 2>&1 || true
 systemctl restart sanashop-bot
-sleep 2
+sleep 4
 
 if ! systemctl is-active --quiet sanashop-bot; then
   echo "❌ ربات بعد از آپدیت بالا نیامد."
@@ -64,8 +76,20 @@ if ! systemctl is-active --quiet sanashop-bot; then
   exit 1
 fi
 
-echo "✅ ربات خارجی به نسخه v10 آپدیت شد."
+BOT_PROCESSES="$(pgrep -fc "$APP_DIR/external_bot(_v[0-9]+)?\.py" || true)"
+if [[ "$BOT_PROCESSES" -gt 1 ]]; then
+  echo "❌ بیش از یک پردازش SanaShop bot روی این سرور پیدا شد."
+  pgrep -af "$APP_DIR/external_bot(_v[0-9]+)?\.py" || true
+  exit 1
+fi
+
+if journalctl -u sanashop-bot --since "2 minutes ago" --no-pager 2>/dev/null | grep -q "terminated by other getUpdates request"; then
+  echo "⚠️ تلگرام هنوز یک poller دیگر با همین Bot Token می‌بیند."
+  echo "اگر نمونه دیگری روی سرور دیگری ندارید، Bot Token را در BotFather تعویض و /etc/sanashop-bot.env را به‌روز کنید."
+fi
+
+echo "✅ ربات خارجی به نسخه v11 آپدیت شد."
+echo "✅ فقط یک نمونه ربات روی این سرور اجازه اجرا دارد."
 echo "✅ اتصال‌های ذخیره‌شده، مدیرها و API Keyها در /var/lib/sanashop-bot حفظ شده‌اند."
-echo "✅ بکاپ دستی/زمان‌بندی‌شده/بازگردانی از ربات فعال است."
 echo "وضعیت: systemctl status sanashop-bot --no-pager"
 echo "لاگ:    journalctl -u sanashop-bot -f"
