@@ -9,6 +9,7 @@ from django.db.models import F
 from django.utils import timezone
 
 from .models import BotEvent, DiscountCode, Order, OrderItem, OrderStatusEvent, Product, SiteSetting
+from .pricing import effective_price
 
 logger = logging.getLogger(__name__)
 RESERVATION_MINUTES = 45
@@ -192,7 +193,7 @@ def expire_reservations(limit=100):
 def cart_rows(request):
     expire_reservations(limit=30)
     cart = request.session.get("cart", {})
-    products = Product.objects.filter(pk__in=cart.keys(), is_active=True).select_related("category")
+    products = Product.objects.filter(pk__in=cart.keys(), is_active=True).select_related("category", "promotion")
     rows, subtotal = [], 0
     clean = {}
     for product in products:
@@ -202,8 +203,9 @@ def cart_rows(request):
             requested = 0
         qty = min(max(requested, 0), product.available_stock)
         if qty:
-            line_total = product.price * qty
-            rows.append({"product": product, "quantity": qty, "total": line_total})
+            unit_price = effective_price(product)
+            line_total = unit_price * qty
+            rows.append({"product": product, "quantity": qty, "unit_price": unit_price, "total": line_total})
             subtotal += line_total
             clean[str(product.pk)] = qty
     if clean != cart:
@@ -229,12 +231,13 @@ def create_order(form, rows, subtotal, store, customer=None, discount=None, disc
     locked_rows = []
     locked_subtotal = 0
     for row in rows:
-        product = Product.objects.select_for_update().get(pk=row["product"].pk)
+        product = Product.objects.select_for_update().select_related("promotion").get(pk=row["product"].pk)
         qty = int(row["quantity"])
         if not product.is_active or product.available_stock < qty:
             raise ValueError(f"موجودی آزاد «{product.name}» کافی نیست.")
-        locked_rows.append((product, qty))
-        locked_subtotal += product.price * qty
+        unit_price = effective_price(product)
+        locked_rows.append((product, qty, unit_price))
+        locked_subtotal += unit_price * qty
 
     if locked_subtotal != subtotal:
         subtotal = locked_subtotal
@@ -255,8 +258,8 @@ def create_order(form, rows, subtotal, store, customer=None, discount=None, disc
     order.reservation_released = False
     order.save()
 
-    for product, qty in locked_rows:
-        OrderItem.objects.create(order=order, product=product, title=product.name, unit_price=product.price, quantity=qty)
+    for product, qty, unit_price in locked_rows:
+        OrderItem.objects.create(order=order, product=product, title=product.name, unit_price=unit_price, quantity=qty)
         Product.objects.filter(pk=product.pk).update(reserved_stock=F("reserved_stock") + qty, updated_at=timezone.now())
 
     OrderStatusEvent.objects.create(order=order, status="pending", note="فاکتور ساخته شد و موجودی موقتاً رزرو شد")

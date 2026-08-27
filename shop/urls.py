@@ -4,7 +4,7 @@ from django.urls import reverse_lazy
 
 from . import account_views, views
 from .auth_views import BrandedPasswordResetView
-from .site_api_v8 import bot_api
+from .site_api_v9 import bot_api
 
 urlpatterns = [
     path("", views.home, name="home"),
