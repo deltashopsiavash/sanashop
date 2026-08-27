@@ -109,6 +109,27 @@ class ProductStory(models.Model):
         return self.title
 
 
+class ProductPromotion(models.Model):
+    """Independent prices; Product.price always remains the original/base price."""
+
+    product = models.OneToOneField(
+        "shop.Product",
+        on_delete=models.CASCADE,
+        related_name="promotion",
+    )
+    discount_price = models.PositiveBigIntegerField(null=True, blank=True)
+    amazing_price = models.PositiveBigIntegerField(null=True, blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        app_label = "shop"
+        verbose_name = "قیمت ویژه محصول"
+        verbose_name_plural = "قیمت‌های ویژه محصولات"
+
+    def __str__(self):
+        return f"{self.product_id}: discount={self.discount_price or '-'} amazing={self.amazing_price or '-'}"
+
+
 class CustomerProfile(models.Model):
     user = models.OneToOneField(
         settings.AUTH_USER_MODEL,
