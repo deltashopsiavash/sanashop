@@ -61,10 +61,10 @@ class DistributionV10Tests(TestCase):
         self.assertNotIn("امکانات نسخه فعلی", text)
         self.assertNotIn("Storefront V2", text)
 
-    def test_bot_installers_run_v12_and_clean_stale_pollers(self):
+    def test_bot_installers_run_v13_and_clean_stale_pollers(self):
         for filename in ("install-bot.sh", "update-bot.sh"):
             text = (Path(settings.BASE_DIR) / filename).read_text(encoding="utf-8")
-            self.assertIn("external_bot_v12.py", text)
+            self.assertIn("external_bot_v13.py", text)
             self.assertIn("pkill -TERM", text)
             self.assertIn("runtime.lock", text)
 
@@ -77,6 +77,14 @@ class DistributionV10Tests(TestCase):
         self.assertIn('core.api(candidate, "ping"', text)
         self.assertIn("سایت واقعاً در دیتابیس ربات ثبت شد", text)
         self.assertIn("acquire_single_instance_lock", text)
+
+    def test_v13_guards_action_errors_without_deleting_site(self):
+        text = (Path(settings.BASE_DIR) / "external_bot_v13.py").read_text(encoding="utf-8")
+        self.assertIn("_backup_version_guard", text)
+        self.assertIn("await v12.callback", text)
+        self.assertIn("اتصال سایت از ربات حذف نشده", text)
+        self.assertIn("اتصال ذخیره‌شده سایت دست‌نخورده باقی ماند", text)
+        self.assertNotIn("DELETE FROM sites", text)
 
     def test_site_updater_preserves_env_and_forces_web_rebuild(self):
         text = (Path(settings.BASE_DIR) / "update-site.sh").read_text(encoding="utf-8")
