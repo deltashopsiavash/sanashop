@@ -17,11 +17,9 @@ DEFAULT_CARD_OWNER="${DEFAULT_CARD_OWNER:-}"
 ZARINPAL_MERCHANT_ID="${ZARINPAL_MERCHANT_ID:-}"
 DJANGO_SUPERUSER_USERNAME="${DJANGO_SUPERUSER_USERNAME:-}"
 DJANGO_SUPERUSER_PASSWORD="${DJANGO_SUPERUSER_PASSWORD:-}"
-SMTP_HOST="${SMTP_HOST:-}"
-SMTP_PORT="${SMTP_PORT:-}"
-SMTP_USER="${SMTP_USER:-}"
-SMTP_PASSWORD="${SMTP_PASSWORD:-}"
-DEFAULT_FROM_EMAIL="${DEFAULT_FROM_EMAIL:-}"
+RESEND_DOMAIN="${RESEND_DOMAIN:-}"
+RESEND_API_KEY="${RESEND_API_KEY:-}"
+RESEND_FROM_EMAIL="${RESEND_FROM_EMAIL:-}"
 
 read_value() {
   local key="$1" prompt="$2" default="${3:-}" secret="${4:-0}" current value
@@ -51,13 +49,15 @@ read_value DEFAULT_CARD_OWNER "نام صاحب کارت (اختیاری): "
 read_value ZARINPAL_MERCHANT_ID "مرچنت زرین‌پال (اختیاری): "
 read_value DJANGO_SUPERUSER_USERNAME "نام کاربری پنل [admin]: " "admin"
 read_value DJANGO_SUPERUSER_PASSWORD "رمز پنل وب: " "" 1
-read_value SMTP_HOST "SMTP Host (برای Gmail: smtp.gmail.com): "
-read_value SMTP_PORT "SMTP Port [587]: " "587"
-read_value SMTP_USER "SMTP username: " "$ACME_EMAIL"
-read_value SMTP_PASSWORD "SMTP password/App Password: " "" 1
-read_value DEFAULT_FROM_EMAIL "ایمیل فرستنده: " "$ACME_EMAIL"
 
-if [[ -z "$DOMAIN" || -z "$ACME_EMAIL" || -z "$DJANGO_SUPERUSER_PASSWORD" || -z "$SMTP_HOST" || -z "$SMTP_USER" || -z "$SMTP_PASSWORD" ]]; then
+echo
+echo "📧 تنظیم ایمیل تراکنشی با Resend"
+echo "قبل از ادامه، دامنه ارسال را در Resend اضافه و DNS آن را در Cloudflare تا وضعیت Verified تنظیم کن."
+read_value RESEND_DOMAIN "دامنه تأییدشده Resend [mail.$DOMAIN]: " "mail.$DOMAIN"
+read_value RESEND_API_KEY "Resend API Key (re_...): " "" 1
+read_value RESEND_FROM_EMAIL "آدرس فرستنده [support@$RESEND_DOMAIN]: " "support@$RESEND_DOMAIN"
+
+if [[ -z "$DOMAIN" || -z "$ACME_EMAIL" || -z "$DJANGO_SUPERUSER_PASSWORD" || -z "$RESEND_DOMAIN" || -z "$RESEND_API_KEY" || -z "$RESEND_FROM_EMAIL" ]]; then
   echo "فیلدهای الزامی کامل نیستند."
   exit 1
 fi
@@ -65,12 +65,20 @@ if [[ ! "$DOMAIN" =~ ^[A-Za-z0-9.-]+$ ]]; then
   echo "دامنه معتبر نیست؛ فقط نام دامنه را بدون http/https یا مسیر وارد کنید."
   exit 1
 fi
+if [[ ! "$RESEND_DOMAIN" =~ ^[A-Za-z0-9.-]+$ ]]; then
+  echo "دامنه Resend معتبر نیست. نمونه صحیح: mail.example.com"
+  exit 1
+fi
+if [[ ! "$RESEND_FROM_EMAIL" =~ ^[^[:space:]@]+@[^[:space:]@]+$ ]]; then
+  echo "آدرس فرستنده معتبر نیست. نمونه صحیح: support@mail.example.com"
+  exit 1
+fi
 
 export DEBIAN_FRONTEND=noninteractive
 apt-get update
 apt-get install -y ca-certificates curl git openssl
 
-echo "✅ اطلاعات دامنه دریافت شد؛ بررسی اجباری A/AAAA انجام نمی‌شود."
+echo "✅ اطلاعات دامنه و Resend دریافت شد؛ بررسی اجباری A/AAAA انجام نمی‌شود."
 
 if ! command -v docker >/dev/null 2>&1; then
   curl -fsSL https://get.docker.com | sh
@@ -114,12 +122,12 @@ DEFAULT_CARD_OWNER=$DEFAULT_CARD_OWNER
 DJANGO_SUPERUSER_USERNAME=$DJANGO_SUPERUSER_USERNAME
 DJANGO_SUPERUSER_PASSWORD=$DJANGO_SUPERUSER_PASSWORD
 DJANGO_SUPERUSER_EMAIL=$ACME_EMAIL
-SMTP_HOST=$SMTP_HOST
-SMTP_PORT=$SMTP_PORT
-SMTP_USER=$SMTP_USER
-SMTP_PASSWORD=$SMTP_PASSWORD
+SMTP_HOST=smtp.resend.com
+SMTP_PORT=587
+SMTP_USER=resend
+SMTP_PASSWORD=$RESEND_API_KEY
 SMTP_USE_TLS=1
-DEFAULT_FROM_EMAIL=$DEFAULT_FROM_EMAIL
+DEFAULT_FROM_EMAIL="$DEFAULT_SITE_NAME <$RESEND_FROM_EMAIL>"
 EOF
 chmod 600 .env
 printf '%s\n' "$SANASHOP_BOT_API_KEY" > /root/sanashop-bot-api-key.txt
@@ -173,6 +181,7 @@ fi
 
 echo
 echo "✅ نصب داخلی سایت و API با موفقیت تست شد."
+echo "✅ ایمیل سایت روی Resend تنظیم شد: $RESEND_FROM_EMAIL"
 echo "🌐 سایت: https://$DOMAIN"
 echo "👤 پنل وب: https://$DOMAIN/admin/"
 echo "🔐 API مدیریت با کلید اختصاصی SANASHOP_BOT_API_KEY محافظت می‌شود."

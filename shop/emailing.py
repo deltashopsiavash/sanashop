@@ -1,4 +1,6 @@
+import os
 from html import escape
+from urllib.parse import urljoin
 
 from django.conf import settings
 from django.contrib.auth.forms import PasswordResetForm
@@ -12,15 +14,49 @@ def _from_email():
     return getattr(settings, "DEFAULT_FROM_EMAIL", None) or None
 
 
-def send_otp_email(user, otp):
+def _public_base_url(request=None):
+    if request is not None:
+        return request.build_absolute_uri("/")
+
+    domain = str(os.environ.get("DOMAIN") or "").strip().strip("/")
+    if domain:
+        return f"https://{domain}/"
+
+    for host in getattr(settings, "ALLOWED_HOSTS", []):
+        host = str(host or "").strip()
+        if host and host not in {"localhost", "127.0.0.1"} and "*" not in host:
+            scheme = "http" if settings.DEBUG else "https"
+            return f"{scheme}://{host}/"
+    return ""
+
+
+def email_brand_context(request=None):
+    """Return a safe email-brand context with an absolute public logo URL."""
     store = SiteSetting.load()
+    logo_url = ""
+    if store.logo:
+        try:
+            path = store.logo.url
+        except ValueError:
+            path = ""
+        if path:
+            base = _public_base_url(request=request)
+            if base:
+                logo_url = urljoin(base, path)
+    return {"store": store, "logo_url": logo_url}
+
+
+def send_otp_email(user, otp):
+    context = email_brand_context()
+    store = context["store"]
     subject = f"کد تأیید عضویت در {store.site_name}"
     text = (
         f"کد تأیید ایمیل شما: {otp.code}\n\n"
         "این کد ۱۰ دقیقه معتبر است.\n"
         "اگر شما درخواست ثبت‌نام نداده‌اید، این پیام را نادیده بگیرید."
     )
-    html = render_to_string("emails/otp.html", {"store": store, "user": user, "code": otp.code})
+    context.update(user=user, code=otp.code)
+    html = render_to_string("emails/otp.html", context)
     message = EmailMultiAlternatives(subject, text, _from_email(), [user.email])
     message.attach_alternative(html, "text/html")
     message.send(fail_silently=False)
@@ -37,7 +73,7 @@ def send_password_reset_email(request, user):
         email_template_name="registration/password_reset_email.txt",
         html_email_template_name="emails/password_reset.html",
         subject_template_name="registration/password_reset_subject.txt",
-        extra_email_context={"store": SiteSetting.load()},
+        extra_email_context=email_brand_context(request=request),
     )
 
 
@@ -52,14 +88,13 @@ def send_broadcast_email(subject, body, recipients):
     if not addresses:
         return 0
 
-    store = SiteSetting.load()
+    context = email_brand_context()
+    store = context["store"]
     subject = str(subject or "").strip()[:180]
     body = str(body or "").strip()
     safe_body = escape(body).replace("\n", "<br>")
-    html = render_to_string(
-        "emails/broadcast.html",
-        {"store": store, "body_html": safe_body},
-    )
+    context["body_html"] = safe_body
+    html = render_to_string("emails/broadcast.html", context)
     text = body
     sent = 0
     # BCC batches protect customer privacy and avoid exposing the mailing list.
