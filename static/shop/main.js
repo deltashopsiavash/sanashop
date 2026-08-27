@@ -81,7 +81,6 @@ document.addEventListener("click", async (event) => {
       const dx = touch.clientX - startX;
       const dy = touch.clientY - startY;
       if (Math.abs(dx) >= 45 && Math.abs(dx) > Math.abs(dy) * 1.15) {
-        // کشیدن به چپ = اسلاید بعدی، کشیدن به راست = قبلی.
         show(dx < 0 ? index + 1 : index - 1);
       }
       start();
@@ -159,4 +158,27 @@ document.addEventListener("click", async (event) => {
     .slice(0, 6);
   input.addEventListener("input", () => { input.value = normalize(input.value); });
   input.addEventListener("paste", () => window.setTimeout(() => { input.value = normalize(input.value); }, 0));
+})();
+
+// تماس با ما: شبکه‌های اجتماعی ثبت‌شده را در یک پنجره تمیز نشان می‌دهد.
+(() => {
+  const dialog = document.getElementById("contactDialog");
+  if (!dialog || typeof dialog.showModal !== "function") return;
+  const openDialog = () => {
+    document.body.classList.remove("menu-open", "search-open");
+    if (!dialog.open) dialog.showModal();
+  };
+  const closeDialog = () => {
+    if (dialog.open) dialog.close();
+  };
+  document.querySelectorAll("[data-contact-open]").forEach((button) => {
+    button.addEventListener("click", (event) => {
+      event.preventDefault();
+      openDialog();
+    });
+  });
+  dialog.querySelector("[data-contact-close]")?.addEventListener("click", closeDialog);
+  dialog.addEventListener("click", (event) => {
+    if (event.target === dialog) closeDialog();
+  });
 })();

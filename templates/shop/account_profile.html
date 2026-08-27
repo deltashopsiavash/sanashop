@@ -13,6 +13,11 @@
     <div><small>مجموع خرید موفق</small><b>{{ total_spent|money }} تومان</b></div>
     <div><small>تاریخ عضویت</small><b>{{ user_profile.date_joined|date:'Y/m/d H:i' }}</b></div>
   </div>
-  <a class="btn btn-primary btn-block" href="{% url 'my_orders' %}" style="margin-top:18px">مشاهده سفارش‌ها</a>
+  <section class="profile-phone-editor">
+    <h2>تغییر شماره تلفن</h2>
+    <p>از داخل حساب کاربری فقط شماره تلفن قابل ویرایش است.</p>
+    <form method="post">{% csrf_token %}<div class="field"><label>{{ phone_form.phone.label }}</label>{{ phone_form.phone }}{% for error in phone_form.phone.errors %}<small class="error">{{ error }}</small>{% endfor %}</div><button class="btn btn-secondary btn-block" type="submit">ذخیره شماره جدید</button></form>
+  </section>
+  <a class="btn btn-primary btn-block" href="{% url 'my_orders' %}" style="margin-top:14px">مشاهده سفارش‌ها</a>
 </div></div></main>
 {% endblock %}

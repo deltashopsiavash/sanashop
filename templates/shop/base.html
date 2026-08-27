@@ -10,23 +10,30 @@
   <link rel="stylesheet" href="{% static 'shop/delta-upgrade.css' %}?v=2">
   <link rel="stylesheet" href="{% static 'shop/footer-story.css' %}?v=1">
   <link rel="stylesheet" href="{% static 'shop/polish-v7.css' %}?v=1">
+  <link rel="stylesheet" href="{% static 'shop/polish-v8.css' %}?v=1">
   <style>:root{--brand:{{ store_settings.primary_color|default:'#7b243f' }}}</style>
   {% block head %}{% endblock %}
 </head>
 <body>
   {% if store_settings.announcement %}<div class="announcement typing-announcement" aria-label="اعلان فروشگاه"><span data-typewriter data-text="{{ store_settings.announcement|escape }}">{{ store_settings.announcement }}</span><i class="typing-cursor" aria-hidden="true"></i></div>{% endif %}
   <header class="site-header">
-    <div class="container header-row">
-      <button class="menu-toggle header-icon-btn" type="button" data-menu-toggle aria-label="نمایش منو" onclick="document.body.classList.toggle('menu-open')">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
-      </button>
+    <div class="container header-row header-main-row">
       <a class="brand" href="{% url 'home' %}" aria-label="صفحه اصلی">
         {% if store_settings.logo %}<img src="{{ store_settings.logo.url }}" alt="لوگوی {{ store_settings.site_name }}">{% else %}<span class="brand-mark">{{ store_settings.site_name|slice:':1' }}</span>{% endif %}
         <span><strong>{{ store_settings.site_name }}</strong><small>{{ store_settings.tagline }}</small></span>
       </a>
+
+      <a class="header-phone-icon {% if not footer_settings.phone and not store_settings.phone %}contact-only{% endif %}" {% if footer_settings.phone %}href="tel:{{ footer_settings.phone }}"{% elif store_settings.phone %}href="tel:{{ store_settings.phone }}"{% else %}href="#" data-contact-open{% endif %} aria-label="تماس با ما">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6.6 10.8c1.5 3 3.7 5.2 6.7 6.7l2.2-2.2c.3-.3.7-.4 1.1-.3 1.2.4 2.5.6 3.8.6.6 0 1 .4 1 1V20c0 .6-.4 1-1 1C10.9 21 3 13.1 3 3.5c0-.6.4-1 1-1h3.5c.6 0 1 .4 1 1 0 1.3.2 2.6.6 3.8.1.4 0 .8-.3 1.1l-2.2 2.4z"/></svg>
+      </a>
+
+      <button class="menu-toggle header-icon-btn" type="button" data-menu-toggle aria-label="نمایش منو" onclick="document.body.classList.toggle('menu-open')">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+      </button>
+
       <form class="header-search" action="{% url 'catalog' %}" role="search">
-        <input type="search" name="q" value="{{ request.GET.q }}" placeholder="جست‌وجوی نام یا کد محصول…" aria-label="جست‌وجو">
-        <button aria-label="جست‌وجو"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg></button>
+        <input type="search" name="q" value="{{ request.GET.q }}" placeholder="جستجو در {{ store_settings.site_name }}" aria-label="جستجو در {{ store_settings.site_name }}">
+        <button aria-label="جستجو"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg></button>
       </form>
       {% if request.user.is_authenticated %}
       <a class="account-link header-action" href="{% url 'account_home' %}">
@@ -42,7 +49,10 @@
         <span>سبد خرید</span>
       </a>
     </div>
-    <form class="mobile-search container" action="{% url 'catalog' %}" role="search"><input type="search" name="q" placeholder="جست‌وجوی نام یا کد محصول…"><button>جست‌وجو</button></form>
+    <form class="mobile-search container" action="{% url 'catalog' %}" role="search">
+      <input type="search" name="q" value="{{ request.GET.q }}" placeholder="جستجو در {{ store_settings.site_name }}" aria-label="جستجو در {{ store_settings.site_name }}">
+      <button type="submit" aria-label="جستجو"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg></button>
+    </form>
     <nav class="nav"><div class="container nav-inner">
       <a href="{% url 'catalog' %}">همه محصولات</a>
       {% for cat in nav_categories %}<a href="{% url 'category' cat.slug %}">{{ cat.name }}</a>{% endfor %}
@@ -57,10 +67,22 @@
   <nav class="mobile-bottom-nav" aria-label="منوی موبایل">
     <a href="{% url 'home' %}"><svg viewBox="0 0 24 24"><path d="m3 11 9-8 9 8v10h-6v-6H9v6H3z"/></svg><span>خانه</span></a>
     <button type="button" data-menu-toggle onclick="document.body.classList.toggle('menu-open')"><svg viewBox="0 0 24 24"><path d="M4 6h6v6H4zM14 6h6v6h-6zM4 16h6v4H4zM14 16h6v4h-6z"/></svg><span>دسته‌ها</span></button>
-    <button onclick="document.body.classList.toggle('search-open');window.scrollTo({top:0,behavior:'smooth'})"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg><span>جستجو</span></button>
+    <button type="button" data-contact-open><svg viewBox="0 0 24 24"><path d="M6.6 10.8c1.5 3 3.7 5.2 6.7 6.7l2.2-2.2c.3-.3.7-.4 1.1-.3 1.2.4 2.5.6 3.8.6.6 0 1 .4 1 1V20c0 .6-.4 1-1 1C10.9 21 3 13.1 3 3.5c0-.6.4-1 1-1h3.5c.6 0 1 .4 1 1 0 1.3.2 2.6.6 3.8.1.4 0 .8-.3 1.1l-2.2 2.4z"/></svg><span>تماس با ما</span></button>
     <a href="{% url 'cart' %}" class="mobile-cart"><span class="mobile-cart-icon"><svg viewBox="0 0 24 24"><path d="M3 4h2l2.1 10.2a2 2 0 0 0 2 1.6h7.8a2 2 0 0 0 2-1.6L20 8H7"/></svg>{% if cart_count %}<b>{{ cart_count }}</b>{% endif %}</span><span>سبد</span></a>
     {% if request.user.is_authenticated %}<a href="{% url 'account_home' %}"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c.8-5 3.4-7 8-7s7.2 2 8 7"/></svg><span>حساب</span></a>{% else %}<button type="button" data-account-open aria-label="ورود یا ثبت‌نام"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c.8-5 3.4-7 8-7s7.2 2 8 7"/></svg><span>حساب</span></button>{% endif %}
   </nav>
+
+  <dialog class="contact-dialog" id="contactDialog" aria-labelledby="contactDialogTitle">
+    <button class="contact-dialog-close" type="button" data-contact-close aria-label="بستن">×</button>
+    <div class="contact-dialog-card">
+      <span class="contact-dialog-icon"><svg viewBox="0 0 24 24"><path d="M6.6 10.8c1.5 3 3.7 5.2 6.7 6.7l2.2-2.2c.3-.3.7-.4 1.1-.3 1.2.4 2.5.6 3.8.6.6 0 1 .4 1 1V20c0 .6-.4 1-1 1C10.9 21 3 13.1 3 3.5c0-.6.4-1 1-1h3.5c.6 0 1 .4 1 1 0 1.3.2 2.6.6 3.8.1.4 0 .8-.3 1.1l-2.2 2.4z"/></svg></span>
+      <h2 id="contactDialogTitle">تماس با ما</h2><p>راه ارتباطی موردنظرتان را انتخاب کنید.</p>
+      <div class="contact-links">
+        {% if footer_settings.phone %}<a href="tel:{{ footer_settings.phone }}"><b>☎ تماس تلفنی</b><span dir="ltr">{{ footer_settings.phone }}</span></a>{% elif store_settings.phone %}<a href="tel:{{ store_settings.phone }}"><b>☎ تماس تلفنی</b><span dir="ltr">{{ store_settings.phone }}</span></a>{% endif %}
+        {% for social in footer_socials %}<a href="{{ social.url }}" target="_blank" rel="noopener"><b>{{ social.label|default:social.get_platform_display }}</b><span>{{ social.get_platform_display }}</span></a>{% empty %}<div class="contact-empty">هنوز شبکه اجتماعی فعالی ثبت نشده است.</div>{% endfor %}
+      </div>
+    </div>
+  </dialog>
 
   {% if not request.user.is_authenticated %}
   <dialog class="account-dialog" id="accountDialog" aria-labelledby="accountDialogTitle">
@@ -71,7 +93,7 @@
     </div>
   </dialog>
   {% endif %}
-  <script src="{% static 'shop/main.js' %}?v=7" defer></script>
+  <script src="{% static 'shop/main.js' %}?v=8" defer></script>
   <script src="{% static 'shop/delta-upgrade.js' %}?v=2" defer></script>
   <script src="{% static 'shop/story-ui.js' %}?v=1" defer></script>
   {% block scripts %}{% endblock %}

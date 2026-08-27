@@ -3,15 +3,15 @@ import re
 from django.contrib import messages
 from django.contrib.auth import authenticate, get_user_model, login
 from django.contrib.auth.decorators import login_required
-from django.core.mail import send_mail
 from django.db.models import Q, Sum
 from django.shortcuts import redirect, render
 from django.utils import timezone
 from django.utils.http import url_has_allowed_host_and_scheme
 
+from .account_forms import CustomerPhoneForm
+from .emailing import send_otp_email
 from .extra_models import CustomerProfile, EmailVerificationCode
 from .forms import EmailLookupForm, PasswordOnlyForm, RegistrationForm
-from .models import SiteSetting
 
 User = get_user_model()
 
@@ -40,18 +40,7 @@ def _normalize_code(value):
 
 
 def _send_otp(user, otp):
-    store = SiteSetting.load()
-    send_mail(
-        f"کد تأیید عضویت در {store.site_name}",
-        (
-            f"کد تأیید ایمیل شما: {otp.code}\n\n"
-            "این کد ۱۰ دقیقه معتبر است.\n"
-            "اگر شما درخواست ثبت‌نام نداده‌اید، این پیام را نادیده بگیرید."
-        ),
-        None,
-        [user.email],
-        fail_silently=False,
-    )
+    send_otp_email(user, otp)
 
 
 def account_entry(request):
@@ -226,6 +215,13 @@ def account_home(request):
 @login_required
 def account_profile(request):
     profile = CustomerProfile.ensure(request.user)
+    phone_form = CustomerPhoneForm(request.POST or None, user=request.user, initial={"phone": profile.phone})
+    if request.method == "POST" and phone_form.is_valid():
+        profile.phone = phone_form.cleaned_data["phone"]
+        profile.save(update_fields=["phone", "updated_at"])
+        messages.success(request, "شماره تلفن شما با موفقیت به‌روزرسانی شد.")
+        return redirect("account_profile")
+
     orders = request.user.orders.all()
     paid_statuses = ["paid", "processing", "shipped", "delivered"]
     return render(
@@ -234,6 +230,7 @@ def account_profile(request):
         {
             "user_profile": request.user,
             "customer_profile": profile,
+            "phone_form": phone_form,
             "orders_count": orders.count(),
             "active_orders_count": orders.exclude(status__in=["delivered", "cancelled"]).count(),
             "total_spent": orders.filter(status__in=paid_statuses).aggregate(total=Sum("total"))["total"] or 0,
