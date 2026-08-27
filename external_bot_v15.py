@@ -45,7 +45,7 @@ async def _show_product(q, site, sid, pid):
         f"رزرو: {p.get('reserved_stock', 0)} | قابل فروش: {p.get('available_stock', p['stock'])}\n"
         f"وضعیت: {'فعال' if p['is_active'] else 'غیرفعال'}"
     )
-    kb = InlineKeyboardMarkup([
+    rows = [
         [
             InlineKeyboardButton("💵 قیمت اصلی", callback_data=f"prod_base_v15:{sid}:{pid}"),
             InlineKeyboardButton("🏷 تخفیف", callback_data=f"prod_discount_v15:{sid}:{pid}"),
@@ -54,13 +54,22 @@ async def _show_product(q, site, sid, pid):
             InlineKeyboardButton("📦 موجودی", callback_data=f"prod_stock:{sid}:{pid}"),
             InlineKeyboardButton("🔥 شگفت‌انگیز", callback_data=f"prod_amazing_v15:{sid}:{pid}"),
         ],
+    ]
+    remove_buttons = []
+    if discount:
+        remove_buttons.append(InlineKeyboardButton("🗑 حذف تخفیف", callback_data=f"prod_discount_remove_v15:{sid}:{pid}"))
+    if amazing:
+        remove_buttons.append(InlineKeyboardButton("🗑 حذف شگفت‌انگیز", callback_data=f"prod_amazing_remove_v15:{sid}:{pid}"))
+    if remove_buttons:
+        rows.append(remove_buttons)
+    rows += [
         [
             InlineKeyboardButton("🔄 فعال/غیرفعال", callback_data=f"prod_toggle:{sid}:{pid}"),
             InlineKeyboardButton("🖼 تعویض عکس", callback_data=f"prod_photo:{sid}:{pid}"),
         ],
         [InlineKeyboardButton("⬅️ محصولات", callback_data=f"products:{sid}")],
-    ])
-    return await q.edit_message_text(text, reply_markup=kb)
+    ]
+    return await q.edit_message_text(text, reply_markup=InlineKeyboardMarkup(rows))
 
 
 def _set_flow(context, flow, sid, pid):
@@ -82,6 +91,24 @@ async def callback(update: Update, context):
             await q.answer()
             return await _show_product(q, site, sid, pid)
 
+        if data.startswith("prod_discount_remove_v15:"):
+            _, sid, pid = data.split(":")
+            site = _site(uid, sid)
+            if not site:
+                return await q.answer("عدم دسترسی", show_alert=True)
+            await q.answer("تخفیف حذف شد")
+            await core.api(site, "product_update", {"id": int(pid), "discount_price": 0})
+            return await _show_product(q, site, sid, pid)
+
+        if data.startswith("prod_amazing_remove_v15:"):
+            _, sid, pid = data.split(":")
+            site = _site(uid, sid)
+            if not site:
+                return await q.answer("عدم دسترسی", show_alert=True)
+            await q.answer("شگفت‌انگیز حذف شد")
+            await core.api(site, "product_update", {"id": int(pid), "amazing_price": 0})
+            return await _show_product(q, site, sid, pid)
+
         if data.startswith("prod_discount_v15:") or data.startswith("prod_price:"):
             _, sid, pid = data.split(":")
             site = _site(uid, sid)
@@ -93,7 +120,7 @@ async def callback(update: Update, context):
             return await q.edit_message_text(
                 f"🏷 قیمت تخفیف را بفرستید.\n\nقیمت اصلی: {_money(p.get('base_price'))} تومان\n"
                 "مثال: اگر قیمت اصلی 200,000 است، 150000 بفرستید.\n"
-                "برای حذف کامل تخفیف عدد 0 را بفرستید."
+                "برای حذف کامل تخفیف عدد 0 را هم می‌توانید بفرستید."
             )
 
         if data.startswith("prod_base_v15:") or data.startswith("prod_old:"):
@@ -121,7 +148,7 @@ async def callback(update: Update, context):
             return await q.edit_message_text(
                 f"🔥 قیمت مخصوص شگفت‌انگیز را بفرستید.\n\nقیمت اصلی: {_money(p.get('base_price'))} تومان\n"
                 f"قیمت شگفت‌انگیز فعلی: {_money(current)}{' تومان' if current else ''}\n\n"
-                "قیمت باید از قیمت اصلی کمتر باشد.\nبرای حذف شگفت‌انگیز عدد 0 را بفرستید."
+                "قیمت باید از قیمت اصلی کمتر باشد.\nبرای حذف شگفت‌انگیز عدد 0 را هم می‌توانید بفرستید."
             )
 
         return await v14.callback(update, context)
