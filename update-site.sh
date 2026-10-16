@@ -27,7 +27,7 @@ printf '%s\n' "$OLD_COMMIT" > .last-version
 ln -sf "$APP_DIR/scripts/sanashop" /usr/local/bin/sanashop
 
 echo "[2/9] ساخت مجدد image سایت..."
-docker compose build --pull --no-cache web
+docker compose build --no-cache web
 
 echo "[3/9] بالا آوردن دیتابیس..."
 docker compose up -d db
