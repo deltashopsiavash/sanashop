@@ -111,7 +111,11 @@ async def callback(update, context):
                                {"id": pid, "image_id": image_id}, timeout=50))["data"]
         image = io.BytesIO(base64.b64decode(photo["image_b64"]))
         image.name = photo.get("filename") or "product.jpg"
-        # Send as separate message so the selection menu remains clickable.
+        # Keep the selection menu clickable; some Telegram clients reject GIF/WEBP
+        # as a sendPhoto upload, so those formats are sent as documents.
+        if image.name.lower().endswith((".webp", ".gif")):
+            return await q.message.reply_document(
+                document=image, filename=image.name, caption="🖼 پیش‌نمایش عکس محصول")
         return await q.message.reply_photo(photo=image, caption="🖼 پیش‌نمایش عکس محصول")
     if action == "gallery_add_v17":
         context.user_data.clear()
