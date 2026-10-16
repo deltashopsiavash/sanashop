@@ -1,4 +1,7 @@
-FROM python:3.12-slim
+# The Compose deployment uses a Docker Hub mirror on Iranian servers.
+# Direct docker builds may override this build argument as needed.
+ARG PYTHON_BASE_IMAGE=python:3.12-slim
+FROM ${PYTHON_BASE_IMAGE}
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 PIP_NO_CACHE_DIR=1
 WORKDIR /app
 

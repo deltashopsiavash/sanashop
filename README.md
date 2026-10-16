@@ -27,3 +27,38 @@ curl -fsSL https://raw.githubusercontent.com/deltashopsiavash/sanashop/main/upda
 ```bash
 curl -fsSL https://raw.githubusercontent.com/deltashopsiavash/sanashop/main/update-bot.sh | sudo bash
 ```
+
+## Docker Hub 403 on Iranian servers
+
+The Iranian site stack defaults to a Docker Hub mirror for **all three** Docker images:
+Python, PostgreSQL, and Caddy. No Docker daemon configuration or Docker Hub login is needed.
+Python packages also use mirrored PyPI repositories.
+
+If Docker Hub returns `403 Forbidden` or `auth.docker.io/token` errors during an
+existing installation, **do not delete `/opt/sanashop` or any Docker volumes**.
+Recover without rerunning the installer:
+
+```bash
+cd /opt/sanashop
+git fetch origin main
+git restore --source=origin/main -- Dockerfile docker-compose.yml
+docker compose up -d --build db web caddy
+docker compose ps
+```
+
+On a new installation, the normal `install-site.sh` command uses the same mirror automatically.
+
+If the default mirror cannot be reached from the server, choose another **trusted**
+Docker registry mirror and override the three image references in your local
+`/opt/sanashop/.env` (these variables are Compose image settings and must
+point to complete image references):
+
+```dotenv
+SANASHOP_PYTHON_IMAGE=docker.arvancloud.ir/library/python:3.12-slim
+SANASHOP_POSTGRES_IMAGE=docker.arvancloud.ir/library/postgres:16-alpine
+SANASHOP_CADDY_IMAGE=docker.arvancloud.ir/library/caddy:2.10-alpine
+```
+
+Then run `docker compose up -d --build db web caddy`. This does **not** reset the
+database, media files, the site domain, or API secrets. Image registries are a
+supply-chain dependency; only select trusted mirror operators.
