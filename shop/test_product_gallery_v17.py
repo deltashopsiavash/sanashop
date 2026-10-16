@@ -147,6 +147,24 @@ class ProductGalleryApiTests(TestCase):
         self.assertEqual(self.api("product_gallery_move", {
             "id": self.product.pk, "image_id": 0, "direction": "up"}).status_code, 400)
 
+    def test_promoting_secondary_when_primary_is_empty_keeps_the_file(self):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+
+        image = ProductImage.objects.create(
+            product=self.product,
+            image=SimpleUploadedFile(
+                "secondary.png", self.photo(), content_type="image/png"),
+        )
+        stored = image.image.name
+        with self.captureOnCommitCallbacks(execute=True):
+            response = self.api("product_gallery_primary", {
+                "id": self.product.pk, "image_id": image.pk})
+        self.assertEqual(response.status_code, 200)
+        self.product.refresh_from_db()
+        self.assertEqual(self.product.image.name, stored)
+        self.assertTrue((self.media_root / stored).exists())
+        self.assertFalse(ProductImage.objects.filter(pk=image.pk).exists())
+
     def test_delete_last_primary_yields_empty_gallery(self):
         self.upload()
         old = Product.objects.get(pk=self.product.pk).image.name
