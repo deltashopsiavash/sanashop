@@ -1,4 +1,5 @@
 """Tests for gallery isolation between the independent SanaShop site panels."""
+import logging
 import os
 import unittest
 from types import SimpleNamespace
@@ -73,6 +74,11 @@ class MultiSiteGalleryTests(unittest.IsolatedAsyncioTestCase):
         self.addCleanup(self.permit.stop)
         self.addCleanup(self.lookup.stop)
         self.addCleanup(self.api.stop)
+
+    async def test_telegram_token_not_logged_in_http_request_info(self):
+        # httpx INFO logs include the full bot API URL with its secret token.
+        self.assertGreaterEqual(logging.getLogger("httpx").getEffectiveLevel(), logging.WARNING)
+        self.assertGreaterEqual(logging.getLogger("httpcore").getEffectiveLevel(), logging.WARNING)
 
     async def test_each_site_admin_panel_has_own_gallery_button(self):
         for site in SITES.values():
