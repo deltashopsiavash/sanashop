@@ -55,7 +55,7 @@ def bot_api(request):
 
     if action == "ping":
         store = SiteSetting.load()
-        return JsonResponse({"ok": True, "site": {"name": store.site_name, "version": 10}})
+        return JsonResponse({"ok": True, "site": {"name": store.site_name, "version": 10, "capabilities": ["product_gallery_v17"]}})
 
     gallery_response = handle_gallery_action(action, payload)
     if gallery_response is not None:
