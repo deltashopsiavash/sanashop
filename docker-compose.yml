@@ -15,7 +15,10 @@ services:
       retries: 20
 
   web:
-    build: .
+    build:
+      context: .
+      args:
+        PIP_PRIMARY_INDEX_URL: ${PIP_PRIMARY_INDEX_URL:-https://mirror.novin.cloud/artifactory/api/pypi/pypi/simple/}
     restart: unless-stopped
     env_file: .env
     depends_on:
