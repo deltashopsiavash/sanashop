@@ -57,6 +57,7 @@ def enhanced_site_panel(site, uid):
     rows = [
         [InlineKeyboardButton(f"🏪 {site['name']}", callback_data=f"site_info:{sid}")],
         [InlineKeyboardButton("📊 داشبورد", callback_data=f"dash:{sid}"), InlineKeyboardButton("🛍 محصولات", callback_data=f"products:{sid}")],
+        [InlineKeyboardButton("🖼 گالری تصاویر محصولات", callback_data=f"galleries_v18:{sid}")],
         [InlineKeyboardButton("🗂 دسته‌ها", callback_data=f"categories:{sid}"), InlineKeyboardButton("🛒 سفارش‌ها", callback_data=f"orders:{sid}")],
         [InlineKeyboardButton("🧾 رسیدها", callback_data=f"receipts:{sid}"), InlineKeyboardButton("👥 کاربران", callback_data=f"users:{sid}")],
         [InlineKeyboardButton("🎞 بنرها", callback_data=f"banners:{sid}"), InlineKeyboardButton("🔴 معرفی محصول", callback_data=f"stories:{sid}")],
