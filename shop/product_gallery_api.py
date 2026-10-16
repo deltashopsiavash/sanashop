@@ -169,6 +169,7 @@ def handle_gallery_action(action, payload):
                         new_name = promoted.image.name
                         # Bypass pre_save's file cleanup because this file is being moved.
                         ProductImage.objects.filter(pk=promoted.pk).update(image="")
+                        promoted.image = ""  # Avoid post_delete removing the promoted file.
                         promoted.delete()
                         product.image = new_name
                     else:
@@ -189,6 +190,7 @@ def handle_gallery_action(action, payload):
                     ProductImage.objects.filter(pk=row.pk).update(image=old_name)
                 else:
                     ProductImage.objects.filter(pk=row.pk).update(image="")
+                    row.image = ""  # The file is now Product.image, not orphaned.
                     row.delete()
                 product.image.name = new_name
                 _reindex(product)
