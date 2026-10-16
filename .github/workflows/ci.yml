@@ -30,6 +30,13 @@ jobs:
         env:
           DJANGO_SECRET_KEY: ci-only-secret
           DJANGO_DEBUG: "1"
+      - name: Test multi-site Telegram bot gallery access
+        run: |
+          python -m pip install python-telegram-bot==22.3 httpx==0.28.1
+          python -m unittest discover -s bot_tests -p 'test_*.py' -v
+        env:
+          TELEGRAM_BOT_TOKEN: test-only-invalid-token
+          TELEGRAM_OWNER_ID: "111"
       - name: Create CI env file
         run: |
           cp .env.example .env
