@@ -17,6 +17,11 @@ from telegram.ext import (
 )
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
+# httpx INFO messages contain the Telegram Bot API URL, which embeds the
+# authentication token. Avoid writing live bot secrets to journald logs.
+# Keep WARNING and ERROR so 409 Conflict and connection failures remain visible.
+logging.getLogger("httpx").setLevel(logging.WARNING)
+logging.getLogger("httpcore").setLevel(logging.WARNING)
 
 DB_PATH = Path(os.environ.get("BOT_DB_PATH", "/var/lib/sanashop-bot/bot.sqlite3"))
 OWNER_ID = int(os.environ["TELEGRAM_OWNER_ID"])
