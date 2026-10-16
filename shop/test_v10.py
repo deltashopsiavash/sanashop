@@ -118,6 +118,7 @@ class DistributionV10Tests(TestCase):
     def test_site_updater_preserves_env_and_forces_web_rebuild(self):
         text = (Path(settings.BASE_DIR) / "update-site.sh").read_text(encoding="utf-8")
         self.assertIn("git reset --hard origin/main", text)
-        self.assertIn("docker compose build --pull --no-cache web", text)
+        self.assertIn("docker compose build --no-cache web", text)
+        self.assertNotIn("docker compose build --pull", text)
         self.assertIn("python manage.py migrate --noinput", text)
         self.assertNotIn("rm -f .env", text)
