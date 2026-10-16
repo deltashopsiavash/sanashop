@@ -65,7 +65,7 @@ async def _show_galleries(q, site, sid):
     status = (await core.api(site, "ping"))["site"]
     if "product_gallery_v17" not in status.get("capabilities", []):
         return await q.edit_message_text(
-            "⚠️ سایت انتخاب‌شده هنوز API گالری چندعکسی را ندارد.\\n"
+            "⚠️ سایت انتخاب‌شده هنوز API گالری چندعکسی را ندارد.\n"
             "ابتدا فقط همان سایت را در سرور ایران آپدیت کن؛ اتصال سایت و مدیران تغییر نمی‌کند.",
             reply_markup=InlineKeyboardMarkup([[
                 InlineKeyboardButton("⬅️ پنل همین سایت", callback_data=f"site_info:{sid}")
@@ -83,7 +83,7 @@ async def _show_galleries(q, site, sid):
         InlineKeyboardButton("⬅️ پنل همین سایت", callback_data=f"site_info:{sid}")
     ])
     return await q.edit_message_text(
-        f"🖼 گالری محصولات سایت «{site['name']}»\\n"
+        f"🖼 گالری محصولات سایت «{site['name']}»\n"
         "روی محصول موردنظر بزن تا عکس‌های همان محصول در همان سایت مدیریت شوند.",
         reply_markup=InlineKeyboardMarkup(buttons),
     )
@@ -107,7 +107,7 @@ async def version_command(update: Update, context):
             lines.append("⚠️ ارتباط با سایت برای بررسی گالری برقرار نشد.")
     else:
         lines.append("👑 برای بررسی هر سایت، پنل همان سایت را باز کن.")
-    return await update.message.reply_text("\\n".join(lines))
+    return await update.message.reply_text("\n".join(lines))
 
 
 async def callback(update: Update, context):
