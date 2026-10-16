@@ -13,6 +13,7 @@ import external_bot_v13 as v13
 import external_bot_v15 as v15
 
 logger = logging.getLogger(__name__)
+BOT_FEATURE_VERSION = "SanaShop multi-site / product-gallery-v18"
 
 
 def _site(uid, sid):
@@ -59,12 +60,78 @@ async def _show_category(q, site, sid, cid):
     return await q.edit_message_text(text, reply_markup=kb)
 
 
+async def _show_galleries(q, site, sid):
+    """Only list products belonging to the selected, access-checked site."""
+    status = (await core.api(site, "ping"))["site"]
+    if "product_gallery_v17" not in status.get("capabilities", []):
+        return await q.edit_message_text(
+            "⚠️ سایت انتخاب‌شده هنوز API گالری چندعکسی را ندارد.\\n"
+            "ابتدا فقط همان سایت را در سرور ایران آپدیت کن؛ اتصال سایت و مدیران تغییر نمی‌کند.",
+            reply_markup=InlineKeyboardMarkup([[
+                InlineKeyboardButton("⬅️ پنل همین سایت", callback_data=f"site_info:{sid}")
+            ]]),
+        )
+    products = (await core.api(site, "products"))["data"]
+    buttons = [
+        [InlineKeyboardButton(
+            f"🖼 {product['name']} | {product['sku']}",
+            callback_data=f"prod_gallery_v17:{sid}:{product['id']}",
+        )]
+        for product in products[:40]
+    ]
+    buttons.append([
+        InlineKeyboardButton("⬅️ پنل همین سایت", callback_data=f"site_info:{sid}")
+    ])
+    return await q.edit_message_text(
+        f"🖼 گالری محصولات سایت «{site['name']}»\\n"
+        "روی محصول موردنظر بزن تا عکس‌های همان محصول در همان سایت مدیریت شوند.",
+        reply_markup=InlineKeyboardMarkup(buttons),
+    )
+
+
+async def version_command(update: Update, context):
+    """Make the running bot version visible without revealing site API credentials."""
+    uid = update.effective_user.id
+    if not core.is_authorized(uid):
+        return await update.message.reply_text("⛔️ شما به این ربات دسترسی ندارید.")
+    site = core.assigned_site(uid)
+    lines = [f"🤖 نسخه فعال ربات: {BOT_FEATURE_VERSION}"]
+    if site is not None:
+        lines.append(f"🏪 سایت مجاز شما: {site['name']}")
+        try:
+            capabilities = (await core.api(site, "ping"))["site"].get("capabilities", [])
+            lines.append("🖼 گالری سایت: " +
+                         ("✅ آماده" if "product_gallery_v17" in capabilities
+                          else "⚠️ سایت نیازمند آپدیت"))
+        except Exception:
+            lines.append("⚠️ ارتباط با سایت برای بررسی گالری برقرار نشد.")
+    else:
+        lines.append("👑 برای بررسی هر سایت، پنل همان سایت را باز کن.")
+    return await update.message.reply_text("\\n".join(lines))
+
+
 async def callback(update: Update, context):
     q = update.callback_query
     uid = q.from_user.id
     data = q.data or ""
 
     try:
+        if data.startswith("galleries_v18:") and len(data.split(":")) == 2:
+            _, sid = data.split(":")
+            site = _site(uid, sid)
+            if not site:
+                return await q.answer("عدم دسترسی به این سایت", show_alert=True)
+            await q.answer()
+            return await _show_galleries(q, site, int(sid))
+
+        if data.startswith("product:") and len(data.split(":")) == 3:
+            _, sid, pid = data.split(":")
+            site = _site(uid, sid)
+            if not site:
+                return await q.answer("عدم دسترسی به این سایت", show_alert=True)
+            await q.answer()
+            return await v15._show_product(q, site, int(sid), int(pid))
+
         if gallery.handles(data):
             return await gallery.callback(update, context)
         if data.startswith("categories:") and len(data.split(":")) == 2:
@@ -221,6 +288,7 @@ def run():
         .build()
     )
     app.add_handler(CommandHandler("start", core.start))
+    app.add_handler(CommandHandler("version", version_command))
     app.add_handler(CallbackQueryHandler(callback))
     app.add_handler(MessageHandler(filters.PHOTO | filters.VIDEO | filters.Document.ALL, media))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, message))
