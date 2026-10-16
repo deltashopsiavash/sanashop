@@ -185,7 +185,7 @@ docker compose up -d --build db web caddy
 
 WEB_OK=0
 for _ in $(seq 1 30); do
-  if docker compose exec -T web curl -fsS http://127.0.0.1:8000/health/ >/dev/null 2>&1; then
+  if docker compose exec -T web python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health/', timeout=5).close()" >/dev/null 2>&1; then
     WEB_OK=1
     break
   fi
@@ -199,11 +199,25 @@ fi
 
 API_OK=0
 for _ in $(seq 1 10); do
-  if docker compose exec -T web curl -fsS -X POST \
-    -H "Authorization: Bearer $SANASHOP_BOT_API_KEY" \
-    -H "Content-Type: application/json" \
-    -d '{"action":"ping","payload":{}}' \
-    http://127.0.0.1:8000/api/bot/v1/ | grep -q '"ok": true'; then
+  if docker compose exec -T -e "SANASHOP_BOT_API_KEY=$SANASHOP_BOT_API_KEY" web python -c '
+import json
+import os
+import urllib.request
+
+request = urllib.request.Request(
+    "http://127.0.0.1:8000/api/bot/v1/",
+    data=json.dumps({"action": "ping", "payload": {}}).encode("utf-8"),
+    headers={
+        "Authorization": "Bearer " + os.environ["SANASHOP_BOT_API_KEY"],
+        "Content-Type": "application/json",
+    },
+    method="POST",
+)
+with urllib.request.urlopen(request, timeout=5) as response:
+    body = json.load(response)
+if body.get("ok") is not True:
+    raise SystemExit(1)
+' >/dev/null 2>&1; then
     API_OK=1
     break
   fi
