@@ -1,9 +1,40 @@
-{% extends 'shop/base.html' %}{% load store_filters %}
+{% extends 'shop/base.html' %}{% load store_filters static %}
 {% block title %}{{ product.name }} | {{ store_settings.site_name }}{% endblock %}
 {% block description %}{{ product.description|truncatewords:24 }}{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'shop/product-gallery.css' %}?v=1">{% endblock %}
 {% block content %}{% with promo=product|promotion_label current=product|effective_price %}<main class="section"><div class="container">
   <nav class="breadcrumb"><a href="{% url 'home' %}">خانه</a><span>/</span><a href="{% url 'category' product.category.slug %}">{{ product.category.name }}</a><span>/</span><span>{{ product.name }}</span></nav>
-  <div class="product-detail"><div class="detail-gallery"><div class="detail-main">{% if product.image %}<img src="{{ product.image.url }}" alt="{{ product.name }}">{% else %}<div class="image-placeholder large"><span>✦</span><small>تصویر محصول</small></div>{% endif %}{% if promo %}<span class="sale-badge promotion-badge detail-promotion-badge {% if promo == 'شگفت‌انگیز' %}is-amazing{% else %}is-discount{% endif %}">{{ promo }}</span>{% endif %}</div>{% if product.gallery.all %}<div class="thumbs">{% for item in product.gallery.all %}<img src="{{ item.image.url }}" alt="{{ item.alt|default:product.name }}">{% endfor %}</div>{% endif %}</div>
+  <div class="product-detail">
+  <div class="detail-gallery" data-product-gallery>
+    <div class="detail-main">
+      {% if product.image %}
+      <img data-gallery-main src="{{ product.image.url }}" alt="{{ product.name }}" fetchpriority="high">
+      {% elif product.gallery.all %}
+      <img data-gallery-main src="{{ product.gallery.all.0.image.url }}" alt="{{ product.gallery.all.0.alt|default:product.name }}" fetchpriority="high">
+      {% else %}
+      <div class="image-placeholder large"><span>✦</span><small>تصویر محصول</small></div>
+      {% endif %}
+      {% if promo %}<span class="sale-badge promotion-badge detail-promotion-badge {% if promo == 'شگفت‌انگیز' %}is-amazing{% else %}is-discount{% endif %}">{{ promo }}</span>{% endif %}
+      {% if product.image or product.gallery.all %}
+      <button type="button" class="gallery-nav gallery-prev" data-gallery-prev aria-label="عکس قبلی">‹</button>
+      <button type="button" class="gallery-nav gallery-next" data-gallery-next aria-label="عکس بعدی">›</button>
+      {% endif %}
+    </div>
+    {% if product.image or product.gallery.all %}
+    <div class="thumbs gallery-thumbs" role="group" aria-label="تصاویر محصول">
+      {% if product.image %}
+      <button class="gallery-thumb is-active" type="button" data-gallery-thumb data-gallery-src="{{ product.image.url }}" data-gallery-alt="{{ product.name }}" aria-label="عکس اصلی" aria-pressed="true">
+        <img src="{{ product.image.url }}" alt="{{ product.name }}" loading="lazy">
+      </button>
+      {% endif %}
+      {% for item in product.gallery.all %}
+      <button class="gallery-thumb {% if not product.image and forloop.first %}is-active{% endif %}" type="button" data-gallery-thumb data-gallery-src="{{ item.image.url }}" data-gallery-alt="{{ item.alt|default:product.name }}" aria-label="عکس شماره {{ forloop.counter }}" aria-pressed="{% if not product.image and forloop.first %}true{% else %}false{% endif %}">
+        <img src="{{ item.image.url }}" alt="{{ item.alt|default:product.name }}" loading="lazy">
+      </button>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </div>
   <div class="detail-copy"><span class="eyebrow">{{ product.category.name }}</span><h1>{{ product.name }}</h1><span class="sku">کد محصول: {{ product.sku }}</span>
     <div class="detail-price product-prices detail-product-prices">
       {% if promo %}<span class="old-price"><small>قیمت اصلی</small><del>{{ product.price|money }} تومان</del></span>{% endif %}
@@ -15,3 +46,4 @@
   </div></div>
   {% if related %}<section class="related"><div class="section-head"><h2>شاید این‌ها را هم دوست داشته باشید</h2></div><div class="product-grid">{% for product in related %}{% include 'shop/_product_card.html' %}{% endfor %}</div></section>{% endif %}
 </div></main>{% endwith %}{% endblock %}
+{% block scripts %}<script defer src="{% static 'shop/product-gallery.js' %}?v=1"></script>{% endblock %}

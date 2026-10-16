@@ -8,6 +8,7 @@ from django.views.decorators.csrf import csrf_exempt
 
 from .extra_models import ProductStory, TrustBadge
 from .models import Category, Product, SiteSetting
+from .product_gallery_api import handle_gallery_action
 from .site_api import _image, api_auth
 from .site_api_v4 import MAX_IMAGE_BYTES, MAX_STORY_BYTES, _decode_file
 from .site_api_v9 import bot_api as v9_bot_api
@@ -55,6 +56,10 @@ def bot_api(request):
     if action == "ping":
         store = SiteSetting.load()
         return JsonResponse({"ok": True, "site": {"name": store.site_name, "version": 10}})
+
+    gallery_response = handle_gallery_action(action, payload)
+    if gallery_response is not None:
+        return gallery_response
 
     if action in {"category_image_set", "product_image_set"}:
         model = Category if action == "category_image_set" else Product

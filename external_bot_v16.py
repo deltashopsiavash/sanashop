@@ -7,6 +7,7 @@ from telegram.ext import Application, CallbackQueryHandler, CommandHandler, Mess
 
 from bot_single_instance import acquire_single_instance_lock
 import external_bot as core
+import external_bot_gallery as gallery
 import external_bot_v10 as v10
 import external_bot_v13 as v13
 import external_bot_v15 as v15
@@ -64,6 +65,8 @@ async def callback(update: Update, context):
     data = q.data or ""
 
     try:
+        if gallery.handles(data):
+            return await gallery.callback(update, context)
         if data.startswith("categories:") and len(data.split(":")) == 2:
             _, sid = data.split(":")
             site = _site(uid, sid)
@@ -146,10 +149,14 @@ async def callback(update: Update, context):
 
 
 async def message(update: Update, context):
+    if context.user_data.get("flow") == "v17_gallery_alt":
+        return await gallery.message(update, context)
     return await v15.message(update, context)
 
 
 async def media(update: Update, context):
+    if context.user_data.get("flow") in gallery.PHOTO_FLOWS:
+        return await gallery.media(update, context)
     if context.user_data.get("flow") != "v16_cat_photo":
         return await v15.media(update, context)
 

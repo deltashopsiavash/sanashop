@@ -65,7 +65,7 @@ async def _show_product(q, site, sid, pid):
     rows += [
         [
             InlineKeyboardButton("🔄 فعال/غیرفعال", callback_data=f"prod_toggle:{sid}:{pid}"),
-            InlineKeyboardButton("🖼 تعویض عکس", callback_data=f"prod_photo:{sid}:{pid}"),
+            InlineKeyboardButton("🖼 گالری و عکس‌ها", callback_data=f"prod_gallery_v17:{sid}:{pid}"),
         ],
         [InlineKeyboardButton("⬅️ محصولات", callback_data=f"products:{sid}")],
     ]
