@@ -9,7 +9,7 @@ case "${1:-}" in
     OLD_COMMIT="$(git rev-parse HEAD)"
     git reset --hard origin/main
     printf '%s\n' "$OLD_COMMIT" > .last-version
-    docker compose build --pull web
+    docker compose build web
     docker compose up -d --remove-orphans db web caddy
     docker compose exec -T web python manage.py migrate --noinput
     docker compose exec -T web python manage.py collectstatic --noinput
