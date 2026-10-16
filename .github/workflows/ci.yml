@@ -39,5 +39,13 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
-      - name: Verify production web Docker image builds
-        run: docker build --progress=plain -t sanashop-web-ci .
+      - name: Verify production Compose resolves mirror image references
+        run: |
+          cp .env.example .env
+          docker compose config --images
+          docker compose config --images | grep -Fx "docker.novin.cloud/library/caddy:2.10-alpine"
+          docker compose config --images | grep -Fx "docker.novin.cloud/library/postgres:16-alpine"
+      - name: Verify Caddy and PostgreSQL images can be pulled via mirror
+        run: docker compose pull caddy db
+      - name: Verify production web Docker image builds with mirrored Python
+        run: docker compose build web
