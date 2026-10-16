@@ -1,6 +1,6 @@
 services:
   db:
-    image: postgres:16-alpine
+    image: ${SANASHOP_POSTGRES_IMAGE:-docker.novin.cloud/library/postgres:16-alpine}
     restart: unless-stopped
     environment:
       POSTGRES_DB: ${POSTGRES_DB}
@@ -18,6 +18,7 @@ services:
     build:
       context: .
       args:
+        PYTHON_BASE_IMAGE: ${SANASHOP_PYTHON_IMAGE:-docker.novin.cloud/library/python:3.12-slim}
         PIP_PRIMARY_INDEX_URL: ${PIP_PRIMARY_INDEX_URL:-https://mirror.novin.cloud/artifactory/api/pypi/pypi/simple/}
     restart: unless-stopped
     env_file: .env
@@ -34,7 +35,7 @@ services:
       retries: 10
 
   caddy:
-    image: caddy:2.10-alpine
+    image: ${SANASHOP_CADDY_IMAGE:-docker.novin.cloud/library/caddy:2.10-alpine}
     restart: unless-stopped
     environment:
       DOMAIN: ${DOMAIN}
