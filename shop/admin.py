@@ -69,6 +69,14 @@ class SiteSettingAdmin(admin.ModelAdmin):
         ("مجوز و قوانین", {"fields": ("enamad_html", "terms_text", "return_policy")}),
     )
 
+    def save_model(self, request, obj, form, change):
+        super().save_model(request, obj, form, change)
+        if "phone" in form.changed_data:
+            from .extra_models import FooterSetting
+            footer = FooterSetting.load()
+            footer.phone = obj.phone
+            footer.save(update_fields=["phone", "updated_at"])
+
     def has_add_permission(self, request):
         return not SiteSetting.objects.exists()
 
