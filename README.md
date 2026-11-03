@@ -127,3 +127,92 @@ SANASHOP_CADDY_IMAGE=docker.arvancloud.ir/library/caddy:2.10-alpine
 Then run `docker compose up -d --build db web caddy`. This does **not** reset the
 database, media files, the site domain, or API secrets. Image registries are a
 supply-chain dependency; only select trusted mirror operators.
+
+
+## Iran: install curl 403, contact/footer, Resend mail
+
+`install-site.sh` itself only uses `curl` to install Docker when Docker is absent.
+When `curl -fSL raw.githubusercontent.com` returns HTTP 403 **before the script starts**,
+the failure comes from fetching the script. On a fresh server, bypass that bootstrap
+request via a git clone:
+
+```bash
+sudo apt-get update && sudo apt-get install -y git
+INSTALL_DIR="$(mktemp -d /root/sanashop-installer.XXXXXX)"
+git clone --depth 1 https://github.com/deltashopsiavash/sanashop.git "$INSTALL_DIR"
+sudo bash "$INSTALL_DIR/install-site.sh"
+```
+
+This command is for **fresh installations only**; do not rerun the installer
+on `/opt/sanashop` if the previous run already created `.env` or started containers.
+
+For image registry errors, distinguish Docker mirror failures from the initial
+GitHub curl. After an installation attempt that created `/opt/sanashop`:
+
+```bash
+cd /opt/sanashop
+docker compose config --images
+docker compose ps
+docker compose logs --tail=60 web caddy
+```
+
+The chosen `SANASHOP_POSTGRES_IMAGE`, `SANASHOP_CADDY_IMAGE`,
+`SANASHOP_PYTHON_IMAGE` and `PIP_PRIMARY_INDEX_URL` are persisted into
+the new site's `.env` so future updates use the same mirror.
+Never delete Docker volumes to fix HTTP 403.
+
+### Footer and phone
+
+In the site footer, expand «راهنمای خرید و اطلاعات فروشگاه» to open
+قوانین و مقررات, تماس با ما, سؤالات متداول.
+The 3 pages are auto-created on migration only when missing and can be edited
+in Django admin under Content pages. Pre-existing content is not replaced.
+Both the `phone` and `contact_phone` Telegram setting update the same public
+contact number used in footer, contact page and header, and an admin change
+in SiteSetting syncs the same value.
+
+### Resend email and verification codes
+
+The domain in Resend must be **Verified** and the From address must be on that
+exact verified domain, e.g. if `mail.example.com` is verified, use
+`support@mail.example.com` as sender. Verification alone does not prove
+that an Iranian server can reach Resend or that the API key permits sending.
+
+New installs use Resend's HTTPS Email API on port 443, rather than outbound
+SMTP port 587 that can be blocked by the VPS network.
+The installer writes `EMAIL_PROVIDER=resend_api`, `RESEND_API_KEY`, and
+`DEFAULT_FROM_EMAIL` to the site's private `.env`.
+Existing installations stay on SMTP unless changed explicitly.
+
+Run exactly one explicit test email after installation, substituting a
+mailbox you control:
+
+```bash
+cd /opt/sanashop
+docker compose exec -T web python manage.py test_store_email --to your-email@example.com
+```
+
+Check the recipient inbox/spam and the Resend Dashboard Emails/Logs: successful
+API submission is **not** proof of final delivery.
+If the test returns HTTP 403, inspect API key sending permissions and
+Resend account restrictions; also test outbound HTTPS 443 from the Iranian
+server. Do not share the API key or contents of `.env`.
+
+If Resend HTTPS API is unreachable in your network, SMTP remains an explicit
+fallback. In `.env` set:
+```dotenv
+EMAIL_PROVIDER=smtp
+SMTP_HOST=smtp.resend.com
+SMTP_PORT=465
+SMTP_USER=resend
+SMTP_USE_SSL=1
+SMTP_USE_TLS=0
+```
+Keep `SMTP_PASSWORD` as the existing Resend API key, and restart only the
+site web container using `docker compose up -d --no-deps web`.
+Another SSL port is 2465 if outbound 465 is blocked. Resend SMTP authentication
+uses username `resend` and a sending-permission API key.
+
+DNS records such as SPF, DKIM, and bounce MX are for sender verification.
+An email sender address is **not** automatically a receiving mailbox; use
+a separate inbox provider if you need to receive support replies.
