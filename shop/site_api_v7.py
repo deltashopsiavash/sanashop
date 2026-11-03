@@ -49,7 +49,8 @@ def bot_api(request):
         response = v6_bot_api(request)
         if response.status_code >= 400:
             return response
-        phone = str(payload.get("contact_phone") if "contact_phone" in payload else payload.get("phone") or "").strip()[:30]
+        raw_phone = payload.get("contact_phone") if "contact_phone" in payload else payload.get("phone")
+        phone = str(raw_phone or "").strip()[:30]
         store = SiteSetting.load()
         footer = FooterSetting.load()
         store.phone = phone
