@@ -78,6 +78,9 @@ EMAIL_HOST = os.environ.get("SMTP_HOST", "")
 EMAIL_PORT = int(os.environ.get("SMTP_PORT", "587"))
 EMAIL_HOST_USER = os.environ.get("SMTP_USER", "")
 EMAIL_HOST_PASSWORD = os.environ.get("SMTP_PASSWORD", "")
-EMAIL_USE_TLS = os.environ.get("SMTP_USE_TLS", "1") == "1"
+# Resend supports STARTTLS:587 and SSL:465/2465. Never enable both.
+EMAIL_USE_SSL = os.environ.get("SMTP_USE_SSL", "0") == "1"
+EMAIL_USE_TLS = (os.environ.get("SMTP_USE_TLS", "1") == "1") and not EMAIL_USE_SSL
+EMAIL_TIMEOUT = int(os.environ.get("SMTP_TIMEOUT", "18"))
 DEFAULT_FROM_EMAIL = os.environ.get("DEFAULT_FROM_EMAIL", EMAIL_HOST_USER or "noreply@localhost")
 PASSWORD_RESET_TIMEOUT = 3600
