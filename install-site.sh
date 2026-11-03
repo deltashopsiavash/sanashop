@@ -168,6 +168,8 @@ SMTP_PORT=587
 SMTP_USER=resend
 SMTP_PASSWORD=$RESEND_API_KEY
 SMTP_USE_TLS=1
+SMTP_USE_SSL=0
+SMTP_TIMEOUT=18
 DEFAULT_FROM_EMAIL="$DEFAULT_SITE_NAME <$RESEND_FROM_EMAIL>"
 # Keep selected mirrors across rebuilds and update-site.sh, including custom overrides.
 SANASHOP_POSTGRES_IMAGE=${SANASHOP_POSTGRES_IMAGE:-docker.novin.cloud/library/postgres:16-alpine}
