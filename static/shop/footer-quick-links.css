@@ -1,0 +1,12 @@
+/* Independent of older footer styles; native details works with keyboard and touch. */
+.footer-quick-links{max-width:880px;margin:26px auto 0;direction:rtl}
+.footer-nav-dropdown{background:#fafbfc;border:1px solid #e5e8ee;border-radius:17px;overflow:hidden}
+.footer-nav-dropdown summary{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:16px 19px;cursor:pointer;list-style:none;font-size:15px;font-weight:850;color:#292d36}
+.footer-nav-dropdown summary::-webkit-details-marker{display:none}
+.footer-nav-dropdown summary:focus-visible,.footer-nav-items a:focus-visible{outline:2px solid var(--brand,#7b243f);outline-offset:-3px}
+.footer-nav-chevron{font-size:24px;line-height:1;transition:transform .2s}
+.footer-nav-dropdown[open] .footer-nav-chevron{transform:rotate(180deg)}
+.footer-nav-items{display:grid;gap:0;padding:3px 12px 13px;border-top:1px solid #e9ecf1}
+.footer-nav-items a{display:flex;align-items:center;min-height:44px;padding:9px 14px;color:#4b5260;text-decoration:none;border-radius:9px;font-size:13px;font-weight:700}
+.footer-nav-items a:hover{background:#f1f2f5;color:var(--brand,#7b243f)}
+@media(min-width:720px){.footer-nav-items{grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.footer-nav-items a{justify-content:center}}
