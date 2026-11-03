@@ -53,8 +53,9 @@ class FooterContactNavigationTests(TestCase):
         self.assertNotContains(home, "tel:02133330000")
 
     def test_header_falls_back_to_old_contact_number(self):
-        SiteSetting.load().phone = "02170001234"
-        SiteSetting.load().save()
+        store = SiteSetting.load()
+        store.phone = "02170001234"
+        store.save(update_fields=["phone", "updated_at"])
         self.assertContains(self.client.get(reverse("home")), "tel:02170001234")
 
     def test_all_footer_help_links_have_editable_pages(self):
