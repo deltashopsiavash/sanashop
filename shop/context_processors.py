@@ -15,11 +15,17 @@ def storefront(request):
     except Exception:
         settings, categories = None, []
         footer_settings, footer_socials, trust_badge, active_stories = None, [], None, []
+    # Footer phone is managed from Telegram; SiteSetting.phone was used by
+    # the header/contact modal. Use one consistent visible number everywhere.
+    contact_phone = (
+        (footer_settings.phone or "").strip() if footer_settings else ""
+    ) or ((settings.phone or "").strip() if settings else "")
     cart = request.session.get("cart", {}) if hasattr(request, "session") else {}
     return {
         "store_settings": settings,
         "nav_categories": categories,
         "footer_settings": footer_settings,
+        "contact_phone": contact_phone,
         "footer_socials": footer_socials,
         "trust_badge": trust_badge,
         "active_stories": active_stories,
