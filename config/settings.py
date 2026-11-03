@@ -65,7 +65,15 @@ DATA_UPLOAD_MAX_MEMORY_SIZE = 64 * 1024 * 1024
 LOGIN_URL = "login"
 LOGIN_REDIRECT_URL = "my_orders"
 LOGOUT_REDIRECT_URL = "home"
-EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+# Fresh installs select Resend HTTPS in install-site.sh; existing SMTP setups
+# remain unchanged until EMAIL_PROVIDER is explicitly set.
+EMAIL_PROVIDER = os.environ.get("EMAIL_PROVIDER", "smtp").strip().lower()
+EMAIL_BACKEND = (
+    "shop.resend_backend.ResendAPIEmailBackend"
+    if EMAIL_PROVIDER == "resend_api"
+    else "django.core.mail.backends.smtp.EmailBackend"
+)
+RESEND_API_KEY = os.environ.get("RESEND_API_KEY", "") or os.environ.get("SMTP_PASSWORD", "")
 EMAIL_HOST = os.environ.get("SMTP_HOST", "")
 EMAIL_PORT = int(os.environ.get("SMTP_PORT", "587"))
 EMAIL_HOST_USER = os.environ.get("SMTP_USER", "")
