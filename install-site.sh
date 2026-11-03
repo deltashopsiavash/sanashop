@@ -76,13 +76,27 @@ if [[ ! "$RESEND_FROM_EMAIL" =~ ^[^[:space:]@]+@[^[:space:]@]+$ ]]; then
 fi
 
 export DEBIAN_FRONTEND=noninteractive
-apt-get update
-apt-get install -y ca-certificates curl git openssl
+# Iranian VPSes may have broken outbound IPv6 to security.ubuntu.com.
+# Prefer IPv4 only for this apt invocation; do not change system-wide DNS.
+apt-get -o Acquire::ForceIPv4=true update
+apt-get -o Acquire::ForceIPv4=true install -y ca-certificates curl git openssl
 
 echo "✅ اطلاعات دامنه و Resend دریافت شد؛ بررسی اجباری A/AAAA انجام نمی‌شود."
 
+# Do not use get.docker.com: its redirect downloads download.docker.com/linux/ubuntu/gpg,
+# which can return HTTP 403 on Iranian providers. Ubuntu 24.04 has docker.io
+# and docker-compose-v2 directly in its repositories.
 if ! command -v docker >/dev/null 2>&1; then
-  curl -fsSL https://get.docker.com | sh
+  echo "در حال نصب Docker از مخازن Ubuntu بدون download.docker.com ..."
+  apt-get -o Acquire::ForceIPv4=true install -y docker.io docker-compose-v2
+elif ! docker compose version >/dev/null 2>&1; then
+  echo "Docker نصب است؛ افزونه Docker Compose v2 نصب می‌شود ..."
+  apt-get -o Acquire::ForceIPv4=true install -y docker-compose-v2
+fi
+
+if ! docker compose version >/dev/null 2>&1; then
+  echo "❌ Docker Compose v2 قابل اجرا نیست. خروجی docker compose version را بررسی کنید."
+  exit 1
 fi
 systemctl enable --now docker
 
