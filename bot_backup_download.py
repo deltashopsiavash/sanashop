@@ -51,6 +51,8 @@ def validate_downloaded_backup(path):
                 raise BackupInvalidError("فایل مشخصات بکاپ بیش از حد بزرگ است.")
             with archive.open("manifest.json") as source:
                 manifest = json.load(source)
+            if not isinstance(manifest, dict):
+                raise BackupInvalidError("فایل مشخصات بکاپ معتبر نیست.")
             if manifest.get("format") != "sanashop-backup" or int(manifest.get("schema_version") or 0) not in (1, 2):
                 raise BackupInvalidError("فرمت یا نسخه فایل بکاپ با SanaShop سازگار نیست.")
     except BackupInvalidError:
@@ -93,7 +95,7 @@ async def download_telegram_backup(document, target, attempts=3):
             if attempt >= attempts:
                 raise BackupNetworkError(
                     "ارتباط سرور ربات با تلگرام هنگام دریافت فایل قطع یا کند است؛ "
-                    f"پس از {attempts} تلاش دریافت نشد. "
+                    f"پس از {str(attempts).translate(str.maketrans('0123456789', '۰۱۲۳۴۵۶۷۸۹'))} تلاش دریافت نشد. "
                     "فایل را بعداً دوباره ارسال کنید یا برای بازیابی مستقیم به سرور سایت منتقل کنید."
                 ) from exc
             await asyncio.sleep(2 * attempt)
