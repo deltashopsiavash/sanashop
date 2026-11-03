@@ -158,6 +158,10 @@ DEFAULT_CARD_OWNER=$DEFAULT_CARD_OWNER
 DJANGO_SUPERUSER_USERNAME=$DJANGO_SUPERUSER_USERNAME
 DJANGO_SUPERUSER_PASSWORD=$DJANGO_SUPERUSER_PASSWORD
 DJANGO_SUPERUSER_EMAIL=$ACME_EMAIL
+# Resend HTTPS API uses port 443 instead of SMTP 587 (often filtered).
+EMAIL_PROVIDER=resend_api
+RESEND_API_KEY=$RESEND_API_KEY
+# Keep SMTP settings available for manual fallback.
 SMTP_HOST=smtp.resend.com
 SMTP_PORT=587
 SMTP_USER=resend
@@ -232,6 +236,10 @@ fi
 echo
 echo "✅ نصب داخلی سایت و API با موفقیت تست شد."
 echo "✅ ایمیل سایت روی Resend تنظیم شد: $RESEND_FROM_EMAIL"
+echo "✅ روش ارسال: Resend HTTPS API (پورت 443)"
+echo "برای بررسی ارسال واقعی، پس از نصب این دستور را با ایمیل خودت اجرا کن:"
+echo "cd $APP_DIR && docker compose exec -T web python manage.py test_store_email --to your-email@example.com"
+echo "نتیجه تحویل را در Resend Dashboard > Emails/Logs بررسی کن."
 echo "🌐 سایت: https://$DOMAIN"
 echo "👤 پنل وب: https://$DOMAIN/admin/"
 echo "🔐 API مدیریت با کلید اختصاصی SANASHOP_BOT_API_KEY محافظت می‌شود."
