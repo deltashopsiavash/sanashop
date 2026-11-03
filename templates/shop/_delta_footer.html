@@ -7,7 +7,7 @@
       </div>
       <div class="footer-contact-lines">
         {% if footer_settings.address %}<div class="footer-contact-line"><b>آدرس</b><span>{{ footer_settings.address }}</span></div>{% endif %}
-        {% if footer_settings.phone %}<div class="footer-contact-line"><b>شماره تماس</b><a href="tel:{{ footer_settings.phone }}">{{ footer_settings.phone }}</a></div>{% endif %}
+        {% if contact_phone %}<div class="footer-contact-line"><b>شماره تماس</b><a href="tel:{{ contact_phone }}">{{ contact_phone }}</a></div>{% endif %}
         {% if footer_settings.email %}<div class="footer-contact-line"><b>آدرس ایمیل</b><a href="mailto:{{ footer_settings.email }}">{{ footer_settings.email }}</a></div>{% endif %}
         {% if footer_settings.support_text %}<div class="footer-contact-line footer-support-line"><span>{{ footer_settings.support_text }}</span></div>{% endif %}
       </div>
@@ -30,6 +30,18 @@
     </div></section>{% endif %}
 
     {% if footer_settings.description %}<section class="footer-about"><h3>{{ store_settings.site_name }}</h3><p>{{ footer_settings.description|linebreaksbr }}</p></section>{% endif %}
+
+
+    <section class="footer-quick-links" aria-label="راهنمای مشتریان">
+      <details class="footer-nav-dropdown">
+        <summary><span>راهنمای خرید و اطلاعات فروشگاه</span><span class="footer-nav-chevron" aria-hidden="true">⌄</span></summary>
+        <nav class="footer-nav-items" aria-label="صفحات راهنما">
+          <a href="{% url 'content_page' 'terms' %}">قوانین و مقررات</a>
+          <a href="{% url 'content_page' 'contact' %}">تماس با ما</a>
+          <a href="{% url 'content_page' 'faq' %}">سؤالات متداول</a>
+        </nav>
+      </details>
+    </section>
 
     <section class="trust-row" aria-label="نماد اعتماد">
       {% if trust_badge and trust_badge.is_active and trust_badge.image %}
