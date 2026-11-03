@@ -131,6 +131,22 @@ supply-chain dependency; only select trusted mirror operators.
 
 ## Iran: install curl 403, contact/footer, Resend mail
 
+The installer on Ubuntu 24.04 now uses the distro packages `docker.io` and
+`docker-compose-v2` (rather than `get.docker.com`, which fetches a
+`download.docker.com/linux/ubuntu/gpg` key that can return HTTP 403).
+APT requests during bootstrap use IPv4 to avoid failing IPv6 connections to
+`security.ubuntu.com`. If an earlier installation stopped at this exact
+Docker install step before creating `/opt/sanashop`, install these packages
+and rerun the updated installer without rebuilding the whole VPS:
+
+```bash
+sudo apt-get -o Acquire::ForceIPv4=true update
+sudo apt-get -o Acquire::ForceIPv4=true install -y docker.io docker-compose-v2
+sudo systemctl enable --now docker
+```
+
+
+
 `install-site.sh` itself only uses `curl` to install Docker when Docker is absent.
 When `curl -fSL raw.githubusercontent.com` returns HTTP 403 **before the script starts**,
 the failure comes from fetching the script. On a fresh server, bypass that bootstrap
