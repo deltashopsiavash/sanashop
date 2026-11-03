@@ -10,6 +10,7 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import Application, CallbackQueryHandler, CommandHandler, MessageHandler, filters
 
 import external_bot as core
+import bot_backup_download as backup_download
 import external_bot_plus as plus
 import external_bot_v9 as v9
 
@@ -267,23 +268,50 @@ async def media(update: Update, context):
     doc = update.message.document
     if not doc or not (doc.file_name or "").lower().endswith(".sanabackup"):
         return await update.message.reply_text("فقط فایل .sanabackup را به‌صورت Document بفرستید.")
-    if doc.file_size and doc.file_size > MAX_RESTORE_BYTES:
-        return await update.message.reply_text("حجم فایل برای بازگردانی از طریق ربات زیاد است؛ حداکثر ۳۵ مگابایت.")
+    if doc.file_size and doc.file_size > backup_download.MAX_TELEGRAM_BACKUP_BYTES:
+        return await update.message.reply_text(
+            "❌ دانلود این فایل با ربات تلگرام ممکن نیست (حداکثر ۲۰ مگابایت).\n"
+            "بکاپ را مستقیماً به سرور همان سایت منتقل و از فرمان بازیابی سروری استفاده کنید."
+        )
 
     handle = tempfile.NamedTemporaryFile(prefix="sanashop-restore-", suffix=".sanabackup", delete=False)
     handle.close()
     path = Path(handle.name)
+    await update.message.reply_text(
+        "⏳ در حال دریافت و بررسی بکاپ از تلگرام...\n"
+        "اگر شبکه کند باشد ربات تا ۳ بار تلاش می‌کند؛ هنوز هیچ اطلاعاتی بازگردانی نشده است."
+    )
     try:
-        tg_file = await doc.get_file()
-        await tg_file.download_to_drive(custom_path=str(path))
-        if path.stat().st_size > MAX_RESTORE_BYTES:
-            raise ValueError("حجم فایل بیشتر از ۳۵ مگابایت است.")
-    except Exception as exc:
+        received, attempts = await backup_download.download_telegram_backup(doc, path)
+        if received > MAX_RESTORE_BYTES:
+            raise ValueError("حجم فایل بیشتر از حد مجاز بازیابی است.")
+    except backup_download.BackupDownloadError as exc:
         path.unlink(missing_ok=True)
         return await update.message.reply_text(f"❌ دریافت فایل ناموفق بود:\n{exc}")
+    except Exception:
+        path.unlink(missing_ok=True)
+        logger.exception("Telegram backup download failed for site=%s", site_id)
+        return await update.message.reply_text(
+            "❌ فایل دانلود نشد؛ مشکل داخلی یا ارتباط تلگرام رخ داد. "
+            "فایل را دوباره بفرستید. هیچ داده‌ای از سایت تغییر نکرده است."
+        )
+
+    # Re-check state because concurrent_updates can switch the active site
+    # during a network download.
+    if (
+        context.user_data.get("flow") != "v10_restore_upload"
+        or int(context.user_data.get("site_id") or 0) != int(site_id)
+        or not core.can_access(uid, int(site_id))
+    ):
+        path.unlink(missing_ok=True)
+        return await update.message.reply_text(
+            "⚠️ هنگام دانلود سایت انتخابی تغییر کرده است؛ بازیابی انجام نشد. "
+            "دوباره از پنل همان سایت شروع کنید."
+        )
 
     context.user_data.update(flow="v10_restore_confirm", restore_path=str(path))
     return await update.message.reply_text(
+        f"✅ فایل {received:,} بایتی دریافت شد و ساختار اولیه بررسی شد (تلاش {attempts}).\n\n"
         "⚠️ با تأیید، دیتابیس و تصاویر فعلی با محتوای این بکاپ جایگزین می‌شوند. ادامه می‌دهید؟",
         reply_markup=InlineKeyboardMarkup([
             [InlineKeyboardButton("✅ تأیید بازگردانی", callback_data=f"backup_restore_confirm_v10:{site_id}")],

@@ -132,9 +132,10 @@ def bot_api(request):
             handle.close()
             manifest = validate_backup_archive(path)
             emergency = restore_backup_archive(path)
+            # Keep the pre-restore safety snapshot in /app/backups. This path
+            # is a persistent Docker volume so a failed user decision can be
+            # reversed even after a web container rebuild.
             emergency_name = emergency.name if emergency else None
-            if emergency:
-                emergency.unlink(missing_ok=True)
             return JsonResponse({
                 "ok": True,
                 "data": {

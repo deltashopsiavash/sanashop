@@ -232,3 +232,67 @@ uses username `resend` and a sending-permission API key.
 DNS records such as SPF, DKIM, and bounce MX are for sender verification.
 An email sender address is **not** automatically a receiving mailbox; use
 a separate inbox provider if you need to receive support replies.
+
+
+## Fixing Telegram .sanabackup restore download timeouts
+
+When the bot says `Timed out` after receiving a 1–2 MB backup document,
+it failed to retrieve the document from **Telegram**; it has **not** yet
+performed a site restore. The live `external_bot_v16.py` delegates this
+flow to `external_bot_v10.py`, which now retries `get_file` and
+`download_to_drive` 3 times with longer timeouts. Only a structurally
+valid SanaShop backup, for the exact selected site, reaches the confirmation
+button. Telegram's cloud Bot API limits downloads to 20 MB.
+
+Update the **foreign bot server** first (without reinstalling the bot,
+replacing its token, or deleting `/var/lib/sanashop-bot`):
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/deltashopsiavash/sanashop/main/update-bot.sh | sudo bash
+```
+
+Then `/start` > your exact site > settings > backups > restore, and
+send the original `.sanabackup` file as a Document.
+If Telegram connectivity keeps timing out, use the offline fallback below.
+
+### Reliable restore from local .sanabackup on the specific site's server
+
+This is an **alternative**, not an extra step after a successful Telegram
+restore. It bypasses the foreign bot and Telegram file downloads entirely.
+Upload the trusted `.sanabackup` file using SFTP/WinSCP to the **Iranian
+server hosting that exact site**, e.g. `/root/restore.sanabackup`.
+
+After updating the site via `update-site.sh` (this makes the preview/restore
+management command and persistent `backup_data` Docker volume available):
+
+```bash
+cd /opt/sanashop
+WEB_CONTAINER="$(docker compose ps -q web)"
+test -n "$WEB_CONTAINER" || { echo "Site web container is not running"; exit 1; }
+docker cp /root/restore.sanabackup "$WEB_CONTAINER":/tmp/restore.sanabackup
+docker compose exec -T web python manage.py restore_store_backup /tmp/restore.sanabackup
+```
+
+The last command **only previews** the snapshot and validates its contents;
+it makes **no changes** to the current site. Review its date, number of
+records, and files and ensure this is the **correct** site. After expressly
+deciding to overwrite the existing store database and media with that
+snapshot, run:
+
+```bash
+cd /opt/sanashop
+docker compose exec -T web python manage.py restore_store_backup /tmp/restore.sanabackup --confirm
+```
+
+A pre-restore rescue snapshot is automatically created in
+`/app/backups` and preserved in the Docker `backup_data` named volume.
+**Do not remove it** until you have checked your orders, products, accounts,
+and media. The site `.env` (current server/domain/API key/Resend credentials)
+is not embedded in the backup and remains on the new host. The foreign
+multi-site bot stores its own site connections in
+`/var/lib/sanashop-bot/bot.sqlite3` on the other server; a site backup
+does not alter this registry.
+
+The local restore command is destructive **only with `--confirm`**.
+Never run `docker compose down -v`, remove volumes, or delete the
+site installation merely to troubleshoot a download timeout.
