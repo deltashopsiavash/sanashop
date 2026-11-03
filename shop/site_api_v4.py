@@ -53,7 +53,7 @@ def _settings_payload():
         "payment_mode": store.payment_mode,
         "has_logo": bool(store.logo),
         "address": footer.address,
-        "phone": footer.phone,
+        "phone": footer.phone or store.phone,
         "contact_email": footer.email,
         "footer_description": footer.description,
         "support_text": footer.support_text,

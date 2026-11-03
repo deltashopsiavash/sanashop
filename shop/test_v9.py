@@ -83,7 +83,7 @@ class ContactPhoneV9Tests(TestCase):
             **self.headers,
         )
 
-    def test_contact_phone_is_independent_from_footer_phone(self):
+    def test_contact_phone_is_synchronized_with_footer_phone(self):
         self.footer.phone = "02111111111"
         self.footer.save(update_fields=["phone", "updated_at"])
         response = self.api("settings_update", {"contact_phone": "09123456789"})
@@ -91,21 +91,24 @@ class ContactPhoneV9Tests(TestCase):
         self.store.refresh_from_db()
         self.footer.refresh_from_db()
         self.assertEqual(self.store.phone, "09123456789")
-        self.assertEqual(self.footer.phone, "02111111111")
+        self.assertEqual(self.footer.phone, "09123456789")
         data = response.json()["data"]
         self.assertEqual(data["contact_phone"], "09123456789")
-        self.assertEqual(data["phone"], "02111111111")
+        self.assertEqual(data["phone"], "09123456789")
         self.assertTrue(data["has_contact_phone"])
 
-    def test_contact_sheet_only_lists_dedicated_store_phone(self):
+    def test_contact_sheet_prefers_footer_phone_and_falls_back_to_store_phone(self):
         self.footer.phone = "02111111111"
         self.footer.save(update_fields=["phone", "updated_at"])
         self.store.phone = ""
         self.store.save(update_fields=["phone", "updated_at"])
         response = self.client.get(reverse("home"))
         self.assertEqual(response.status_code, 200)
-        self.assertNotContains(response, "contact-phone-row")
+        self.assertContains(response, "contact-phone-row")
+        self.assertContains(response, "tel:02111111111")
 
+        self.footer.phone = ""
+        self.footer.save(update_fields=["phone", "updated_at"])
         self.store.phone = "09123456789"
         self.store.save(update_fields=["phone", "updated_at"])
         response = self.client.get(reverse("home"))

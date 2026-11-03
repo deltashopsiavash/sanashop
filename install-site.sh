@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
+trap 'code=$?; echo "❌ نصب در خط ${LINENO} با کد ${code} متوقف شد. خطاهای بالاتر را برای تشخیص آدرس 403 بررسی کنید." >&2' ERR
 
 REPO_URL="${SANASHOP_REPO_URL:-https://github.com/deltashopsiavash/sanashop.git}"
 APP_DIR="${SANASHOP_DIR:-/opt/sanashop}"
@@ -158,12 +159,23 @@ DEFAULT_CARD_OWNER=$DEFAULT_CARD_OWNER
 DJANGO_SUPERUSER_USERNAME=$DJANGO_SUPERUSER_USERNAME
 DJANGO_SUPERUSER_PASSWORD=$DJANGO_SUPERUSER_PASSWORD
 DJANGO_SUPERUSER_EMAIL=$ACME_EMAIL
+# Resend HTTPS API uses port 443 instead of SMTP 587 (often filtered).
+EMAIL_PROVIDER=resend_api
+RESEND_API_KEY=$RESEND_API_KEY
+# Keep SMTP settings available for manual fallback.
 SMTP_HOST=smtp.resend.com
 SMTP_PORT=587
 SMTP_USER=resend
 SMTP_PASSWORD=$RESEND_API_KEY
 SMTP_USE_TLS=1
+SMTP_USE_SSL=0
+SMTP_TIMEOUT=18
 DEFAULT_FROM_EMAIL="$DEFAULT_SITE_NAME <$RESEND_FROM_EMAIL>"
+# Keep selected mirrors across rebuilds and update-site.sh, including custom overrides.
+SANASHOP_POSTGRES_IMAGE=${SANASHOP_POSTGRES_IMAGE:-docker.novin.cloud/library/postgres:16-alpine}
+SANASHOP_CADDY_IMAGE=${SANASHOP_CADDY_IMAGE:-docker.novin.cloud/library/caddy:2.10-alpine}
+SANASHOP_PYTHON_IMAGE=${SANASHOP_PYTHON_IMAGE:-docker.novin.cloud/library/python:3.12-slim}
+PIP_PRIMARY_INDEX_URL=${PIP_PRIMARY_INDEX_URL:-https://mirror.novin.cloud/artifactory/api/pypi/pypi/simple/}
 EOF
 chmod 600 .env
 printf '%s\n' "$SANASHOP_BOT_API_KEY" > /root/sanashop-bot-api-key.txt
@@ -232,6 +244,10 @@ fi
 echo
 echo "✅ نصب داخلی سایت و API با موفقیت تست شد."
 echo "✅ ایمیل سایت روی Resend تنظیم شد: $RESEND_FROM_EMAIL"
+echo "✅ روش ارسال: Resend HTTPS API (پورت 443)"
+echo "برای بررسی ارسال واقعی، پس از نصب این دستور را با ایمیل خودت اجرا کن:"
+echo "cd $APP_DIR && docker compose exec -T web python manage.py test_store_email --to your-email@example.com"
+echo "نتیجه تحویل را در Resend Dashboard > Emails/Logs بررسی کن."
 echo "🌐 سایت: https://$DOMAIN"
 echo "👤 پنل وب: https://$DOMAIN/admin/"
 echo "🔐 API مدیریت با کلید اختصاصی SANASHOP_BOT_API_KEY محافظت می‌شود."
