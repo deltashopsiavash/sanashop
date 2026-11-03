@@ -51,7 +51,7 @@ if [[ ! -x .venv/bin/python ]]; then
 fi
 .venv/bin/pip install --upgrade pip
 .venv/bin/pip install python-telegram-bot==22.3 httpx==0.28.1
-.venv/bin/python -m py_compile external_bot_v16.py external_bot_v15.py external_bot_gallery.py
+.venv/bin/python -m py_compile external_bot_v16.py external_bot_v15.py external_bot_gallery.py external_bot_v10.py bot_backup_download.py
 install -d -m 700 /var/lib/sanashop-bot
 rm -f /var/lib/sanashop-bot/runtime.lock
 
@@ -106,6 +106,7 @@ if [[ "$BOT_PROCESSES" -gt 1 ]]; then
 fi
 
 echo "✅ ربات چندسایتی با گالری محصولات (product-gallery-v18) آپدیت شد."
+echo "✅ دریافت بکاپ‌های SanaShop از تلگرام: تایم‌اوت بیشتر، ۳ تلاش و بررسی سلامت فایل."
 echo "🔖 کامیت سرور خارج: $(git rev-parse --short HEAD)"
 echo "✅ برنامه فعال: $ACTIVE_COMMAND"
 echo "🧪 در تلگرام /version را بفرست تا نسخه در حال اجرای ربات مشخص شود."
