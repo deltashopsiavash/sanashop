@@ -117,6 +117,17 @@ class ContactPhoneV9Tests(TestCase):
 
 
 class InstallerV9Tests(TestCase):
+    def test_fresh_install_does_not_download_blocked_docker_gpg(self):
+        script = (Path(settings.BASE_DIR) / "install-site.sh").read_text(encoding="utf-8")
+        self.assertNotIn("https://get.docker.com", script)
+        self.assertNotIn("https://download.docker.com", script.replace(
+            "# Do not use get.docker.com: its redirect downloads download.docker.com/linux/ubuntu/gpg,",
+            ""
+        ))
+        self.assertIn("install -y docker.io docker-compose-v2", script)
+        self.assertIn("Acquire::ForceIPv4=true", script)
+        self.assertIn("docker compose version", script)
+
     def test_fresh_install_prompts_for_resend_not_gmail(self):
         script = (Path(settings.BASE_DIR) / "install-site.sh").read_text(encoding="utf-8")
         self.assertIn("smtp.resend.com", script)
