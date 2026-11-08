@@ -229,7 +229,10 @@ def cart_rows(request):
         product = products.get(pid)
         if not product:
             continue
-        choices = [choice for choice in product.colors.all() if choice.is_active]
+        all_colors = list(product.colors.all())
+        choices = [choice for choice in all_colors if choice.is_active]
+        if all_colors and not choices:
+            continue
         if color_id is None and choices:
             # Existing carts remain usable when there is exactly one color.
             if len(choices) != 1:
