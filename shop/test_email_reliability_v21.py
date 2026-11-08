@@ -91,3 +91,22 @@ class OTPFailureRecoveryTests(TestCase):
         self.assertGreaterEqual((timezone.now() - self.otp.last_sent_at).total_seconds(), 60)
         self.assertTrue(get_user_model().objects.filter(pk=self.user.pk).exists())
         self.assertEqual(sending.call_count, 1)
+
+
+@override_settings(
+    EMAIL_BACKEND="shop.resend_backend.ResendAPIEmailBackend",
+    EMAIL_PROVIDER="resend_api",
+    RESEND_API_KEY="re-test-secret-never-output",
+    RESEND_SENDING_DOMAIN="mail.example.com",
+    DEFAULT_FROM_EMAIL="Shop <support@wrong.example.com>",
+)
+class EmailDiagnosticCommandTests(TestCase):
+    def test_reject_sender_domain_mismatch_before_network_or_send(self):
+        from django.core.management import call_command
+        from django.core.management.base import CommandError
+        with patch("shop.management.commands.test_store_email.socket.create_connection") as conn:
+            with self.assertRaises(CommandError) as ex:
+                call_command("test_store_email", "--diagnose")
+        conn.assert_not_called()
+        self.assertIn("Sender domain does not match", str(ex.exception))
+        self.assertNotIn("re-test-secret-never-output", str(ex.exception))
