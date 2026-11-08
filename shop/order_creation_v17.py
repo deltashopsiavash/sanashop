@@ -30,7 +30,7 @@ def create_order(form, rows, subtotal, store, customer=None, discount=None, disc
         available_colors = ProductColor.objects.filter(product_id=product.pk, is_active=True)
         selected_color_id = row.get("color_id")
         selected = available_colors.filter(pk=selected_color_id).first() if selected_color_id else None
-        if available_colors.exists() and selected is None:
+        if ProductColor.objects.filter(product_id=product.pk).exists() and selected is None:
             raise ValueError(f"رنگ محصول «{product.name}» را دوباره انتخاب کنید.")
         if selected_color_id and selected is None:
             raise ValueError(f"رنگ انتخابی محصول «{product.name}» معتبر نیست.")
