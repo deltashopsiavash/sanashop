@@ -282,13 +282,22 @@ def create_order(form, rows, subtotal, store, customer=None, discount=None, disc
     shipping = store.shipping_for(subtotal)
     locked_rows = []
     locked_subtotal = 0
+    reserved = {}
     for row in rows:
         product = Product.objects.select_for_update().select_related("promotion").get(pk=row["product"].pk)
         qty = int(row["quantity"])
-        if not product.is_active or product.available_stock < qty:
+        reserved[product.pk] = reserved.get(product.pk, 0) + qty
+        if not product.is_active or product.available_stock < reserved[product.pk]:
             raise ValueError(f"موجودی آزاد «{product.name}» کافی نیست.")
+        colors = product.colors.filter(is_active=True)
+        cid = row.get("color_id")
+        color = colors.filter(pk=cid).first() if cid else None
+        if product.colors.exists() and color is None:
+            raise ValueError(f"رنگ محصول «{product.name}» را دوباره انتخاب کنید.")
+        if cid and color is None:
+            raise ValueError(f"رنگ محصول «{product.name}» معتبر نیست.")
         unit_price = effective_price(product)
-        locked_rows.append((product, qty, unit_price))
+        locked_rows.append((product, qty, unit_price, color))
         locked_subtotal += unit_price * qty
 
     if locked_subtotal != subtotal:
@@ -310,8 +319,13 @@ def create_order(form, rows, subtotal, store, customer=None, discount=None, disc
     order.reservation_released = False
     order.save()
 
-    for product, qty, unit_price in locked_rows:
-        OrderItem.objects.create(order=order, product=product, title=product.name, unit_price=unit_price, quantity=qty)
+    for product, qty, unit_price, color in locked_rows:
+        OrderItem.objects.create(
+            order=order, product=product, title=product.name,
+            selected_color=color.name if color else "",
+            color_hex=color.hex_code if color else "",
+            unit_price=unit_price, quantity=qty,
+        )
         Product.objects.filter(pk=product.pk).update(reserved_stock=F("reserved_stock") + qty, updated_at=timezone.now())
 
     OrderStatusEvent.objects.create(order=order, status="pending", note="فاکتور ساخته شد و موجودی موقتاً رزرو شد")
