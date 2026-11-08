@@ -131,6 +131,11 @@ class Product(models.Model):
     def available(self):
         return self.is_active and self.available_stock > 0
 
+    @property
+    def lowest_available_option_price(self):
+        prices = [opt.price for opt in self.numbered_options.all() if opt.is_available]
+        return min(prices) if prices else None
+
     def __str__(self):
         return self.name
 
