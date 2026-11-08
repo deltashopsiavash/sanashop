@@ -28,6 +28,8 @@ class ResendAPIEmailBackend(BaseEmailBackend):
             headers={
                 "Authorization": "Bearer " + key,
                 "Content-Type": "application/json",
+                "Accept": "application/json",
+                "User-Agent": "SanaShop-Store/1.0",
             },
             method="POST",
         )
@@ -38,6 +40,9 @@ class ResendAPIEmailBackend(BaseEmailBackend):
             try:
                 response = json.loads(exc.read(2048).decode("utf-8"))
                 detail = str(response.get("name") or response.get("error") or "request_rejected")[:100]
+                # Do not print any response text or API credentials; use safe
+                # diagnostics and the HTTP status for on-server troubleshooting.
+                detail = "".join(ch for ch in detail if ch.isascii() and (ch.isalnum() or ch in "_-")) or "request_rejected"
             except Exception:
                 detail = "request_rejected"
             raise ResendDeliveryError(f"Resend API rejected request (HTTP {exc.code}: {detail})") from None
@@ -47,6 +52,11 @@ class ResendAPIEmailBackend(BaseEmailBackend):
             raise ResendDeliveryError("Invalid JSON response from Resend") from exc
         if not isinstance(data, (dict, list)):
             raise ResendDeliveryError("Unexpected response from Resend API")
+        if isinstance(data, dict) and "id" not in data and not (
+            isinstance(data.get("data"), list)
+            and all(isinstance(item, dict) and item.get("id") for item in data["data"])
+        ):
+            raise ResendDeliveryError("Resend returned no message ID; submission was not confirmed")
         return data
 
     @staticmethod
