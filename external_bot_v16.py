@@ -9,6 +9,8 @@ from bot_single_instance import acquire_single_instance_lock
 import external_bot as core
 import external_bot_gallery as gallery
 import external_bot_colors as colors
+import external_bot_options as numbered_options
+import external_bot_faq as faq
 import external_bot_v10 as v10
 import external_bot_v13 as v13
 import external_bot_v15 as v15
@@ -107,6 +109,12 @@ async def version_command(update: Update, context):
             lines.append("🎨 رنگ‌های محصول: " +
                          ("✅ آماده" if "product_colors_v21" in capabilities
                           else "⚠️ سایت نیازمند آپدیت"))
+            lines.append("🔢 محصولات شماره‌دار: " +
+                         ("✅ آماده" if "product_options_v22" in capabilities
+                          else "⚠️ سایت نیازمند آپدیت"))
+            lines.append("❓ سؤالات متداول: " +
+                         ("✅ آماده" if "faq_edit_v22" in capabilities
+                          else "⚠️ سایت نیازمند آپدیت"))
         except Exception:
             lines.append("⚠️ ارتباط با سایت برای بررسی گالری برقرار نشد.")
     else:
@@ -136,6 +144,10 @@ async def callback(update: Update, context):
             await q.answer()
             return await v15._show_product(q, site, int(sid), int(pid))
 
+        if numbered_options.handles(data):
+            return await numbered_options.callback(update, context)
+        if faq.handles(data):
+            return await faq.callback(update, context)
         if colors.handles(data):
             return await colors.callback(update, context)
         if gallery.handles(data):
@@ -222,6 +234,10 @@ async def callback(update: Update, context):
 
 
 async def message(update: Update, context):
+    if context.user_data.get("flow") in numbered_options.FLOWS:
+        return await numbered_options.message(update, context)
+    if context.user_data.get("flow") in faq.FLOWS:
+        return await faq.message(update, context)
     if context.user_data.get("flow") in colors.TEXT_FLOWS:
         return await colors.message(update, context)
     if context.user_data.get("flow") == "v17_gallery_alt":
