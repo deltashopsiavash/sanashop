@@ -41,7 +41,28 @@
       <span class="new-price"><small>{% if promo == 'شگفت‌انگیز' %}قیمت شگفت‌انگیز{% elif promo %}قیمت با تخفیف{% else %}قیمت محصول{% endif %}</small><strong>{{ current|money }} <small>تومان</small></strong></span>
     </div>
     <div class="description">{{ product.description|linebreaks|default:'توضیحات این محصول به‌زودی تکمیل می‌شود.' }}</div>
-    {% if product.available %}<div class="stock in-stock">● موجود در انبار ({{ product.available_stock }} عدد قابل خرید)</div><form class="buy-box" method="post" action="{% url 'cart_add' product.id %}">{% csrf_token %}<label>تعداد <input type="number" name="quantity" min="1" max="{{ product.available_stock }}" value="1"></label><button class="btn btn-primary">افزودن به سبد خرید</button></form>{% else %}<div class="stock out-stock">این محصول فعلاً ناموجود است</div>{% endif %}
+    {% if product.available %}
+      <div class="stock in-stock">● موجود در انبار ({{ product.available_stock }} عدد قابل خرید)</div>
+      <form class="buy-box" method="post" action="{% url 'cart_add' product.id %}">
+        {% csrf_token %}
+        {% if product.colors.all %}
+        <fieldset class="product-color-picker" aria-label="انتخاب رنگ محصول">
+          <legend>انتخاب رنگ <small>(رنگ موردنظر در فاکتور ثبت می‌شود)</small></legend>
+          <div class="product-color-list">
+            {% for color in product.colors.all %}{% if color.is_active %}
+              <label class="product-color-choice">
+                <input type="radio" name="color_id" value="{{ color.id }}" required {% if product.colors.count == 1 %}checked{% endif %}>
+                <span class="color-swatch" style="--swatch-color:{{ color.hex_code }}" aria-hidden="true"></span>
+                <span>{{ color.name }}</span>
+              </label>
+            {% endif %}{% endfor %}
+          </div>
+        </fieldset>
+        {% endif %}
+        <label>تعداد <input type="number" name="quantity" min="1" max="{{ product.available_stock }}" value="1"></label>
+        <button class="btn btn-primary" {% if product.colors.all and not available_colors %}disabled{% endif %}>افزودن به سبد خرید</button>
+      </form>
+    {% else %}<div class="stock out-stock">این محصول فعلاً ناموجود است</div>{% endif %}
     <div class="detail-assurances">{% if product.assurance_1 %}<span>✓ {{ product.assurance_1 }}</span>{% endif %}{% if product.assurance_2 %}<span>✓ {{ product.assurance_2 }}</span>{% endif %}{% if product.assurance_3 %}<span>✓ {{ product.assurance_3 }}</span>{% endif %}</div>
   </div></div>
   {% if related %}<section class="related"><div class="section-head"><h2>شاید این‌ها را هم دوست داشته باشید</h2></div><div class="product-grid">{% for product in related %}{% include 'shop/_product_card.html' %}{% endfor %}</div></section>{% endif %}
