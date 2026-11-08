@@ -26,7 +26,7 @@ jobs:
           DJANGO_SECRET_KEY: ci-only-secret
           DJANGO_DEBUG: "1"
           DOMAIN: example.com
-      - run: python manage.py makemigrations --check --dry-run
+      - run: python manage.py makemigrations --check --dry-run --verbosity 3
         env:
           DJANGO_SECRET_KEY: ci-only-secret
           DJANGO_DEBUG: "1"
