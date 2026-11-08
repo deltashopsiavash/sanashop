@@ -1,4 +1,6 @@
+import logging
 import re
+from datetime import timedelta
 
 from django.contrib import messages
 from django.contrib.auth import authenticate, get_user_model, login
@@ -14,6 +16,15 @@ from .extra_models import CustomerProfile, EmailVerificationCode
 from .forms import EmailLookupForm, PasswordOnlyForm, RegistrationForm
 
 User = get_user_model()
+logger = logging.getLogger(__name__)
+
+
+def _record_email_failure(otp, context):
+    """Do not block a retry for 60s when no email was sent successfully."""
+    logger.warning("OTP delivery failed (%s); verify site's Resend configuration", context)
+    if otp is not None:
+        otp.last_sent_at = timezone.now() - timedelta(seconds=65)
+        otp.save(update_fields=["last_sent_at", "updated_at"])
 
 
 def _user_for_email(email):
@@ -63,7 +74,9 @@ def account_entry(request):
                     try:
                         _send_otp(user, otp)
                     except Exception:
-                        messages.error(request, "ارسال کد تأیید ممکن نشد؛ چند دقیقه بعد دوباره تلاش کنید.")
+                        logger.exception("OTP delivery failed during login for inactive user")
+                        _record_email_failure(otp, "login")
+                        messages.error(request, "ارسال کد تأیید ناموفق بود. از بخش ارسال مجدد تلاش کنید.")
                 return redirect("verify_email_code")
             return redirect("account_password")
         return redirect("register")
@@ -113,8 +126,12 @@ def register(request):
         try:
             _send_otp(user, otp)
         except Exception:
-            user.delete()
-            form.add_error(None, "ارسال کد تأیید ممکن نشد؛ تنظیمات ایمیل فروشگاه را بررسی کنید.")
+            logger.exception("OTP delivery failed during new account registration")
+            _record_email_failure(otp, "registration")
+            request.session["pending_verification_user_id"] = user.id
+            request.session["account_email"] = user.email
+            messages.error(request, "ارسال کد تأیید ناموفق بود. حساب ذخیره شد؛ از همین صفحه ارسال مجدد را بزنید.")
+            return redirect("verify_email_code")
         else:
             request.session["pending_verification_user_id"] = user.id
             request.session["account_email"] = user.email
@@ -144,7 +161,9 @@ def verify_email_code(request):
         try:
             _send_otp(user, otp)
         except Exception:
-            messages.error(request, "ارسال کد تأیید ممکن نشد.")
+            logger.exception("OTP delivery failed when creating missing code")
+            _record_email_failure(otp, "verify_page")
+            messages.error(request, "ارسال کد تأیید ممکن نشد. می‌توانید درخواست ارسال مجدد بدهید.")
 
     if request.method == "POST" and request.POST.get("action") == "resend":
         now = timezone.now()
@@ -157,7 +176,9 @@ def verify_email_code(request):
                 _send_otp(user, otp)
                 messages.success(request, "کد جدید ارسال شد.")
             except Exception:
-                messages.error(request, "ارسال کد جدید ممکن نشد.")
+                logger.exception("OTP resend delivery failed")
+                _record_email_failure(otp, "resend")
+                messages.error(request, "ارسال کد جدید ممکن نشد؛ دسترسی ایمیل فروشگاه باید بررسی شود.")
         return redirect("verify_email_code")
 
     error = ""
