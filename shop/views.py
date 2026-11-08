@@ -184,10 +184,16 @@ def catalog(request, category_slug=None):
 
 
 def product_detail(request, slug):
-    product = get_object_or_404(Product.objects.select_related("category").prefetch_related("gallery", "colors"), slug=slug, is_active=True)
+    product = get_object_or_404(Product.objects.select_related("category").prefetch_related("gallery", "colors", "numbered_options"), slug=slug, is_active=True)
     related = Product.objects.filter(category=product.category, is_active=True).exclude(pk=product.pk).prefetch_related("colors")[:4]
     available_colors = [color for color in product.colors.all() if color.is_active]
-    return render(request, "shop/product.html", {"product": product, "related": related, "available_colors": available_colors})
+    numbered_options = list(product.numbered_options.all())
+    available_options = [option for option in numbered_options if option.is_available]
+    return render(request, "shop/product.html", {
+        "product": product, "related": related, "available_colors": available_colors,
+        "numbered_options": numbered_options, "available_options": available_options,
+        "min_option_price": min((option.price for option in available_options), default=None),
+    })
 
 
 def _cart_context(request):
@@ -235,6 +241,9 @@ def _cart_json(request):
                 "key": row["key"],
                 "color_id": row["color_id"],
                 "selected_color": row["selected_color"],
+                "option_id": row["option_id"],
+                "option_code": row["option_code"],
+                "option_title": row["option_title"],
                 "quantity": row["quantity"],
                 "stock": row["product"].available_stock,
                 "total": row["total"],
@@ -278,6 +287,22 @@ def cart_add(request, product_id):
     elif request.POST.get("color_id"):
         return JsonResponse({"ok": False, "error": "این محصول رنگ انتخابی ندارد."}, status=400) if _wants_json(request) else redirect("product_detail", slug=product.slug)
 
+    # An option is mandatory whenever the parent has numbered choices.
+    options = list(product.numbered_options.all())
+    option = None
+    if options:
+        raw_option = str(request.POST.get("option_id") or "").strip()
+        if raw_option.isascii() and raw_option.isdigit():
+            option = next((o for o in options if o.pk == int(raw_option) and o.is_available), None)
+        if option is None:
+            error = "لطفاً یکی از شماره‌های موجود را انتخاب کنید."
+            if _wants_json(request):
+                return JsonResponse({"ok": False, "error": error}, status=400)
+            messages.warning(request, error)
+            return redirect("product_detail", slug=product.slug)
+    elif request.POST.get("option_id"):
+        return JsonResponse({"ok": False, "error": "گزینه انتخاب‌شده معتبر نیست."}, status=400) if _wants_json(request) else redirect("product_detail", slug=product.slug)
+
     try:
         requested = int(request.POST.get("quantity", 1))
     except (TypeError, ValueError):
@@ -285,7 +310,7 @@ def cart_add(request, product_id):
     data = request.session.get("cart", {})
     if not isinstance(data, dict):
         data = {}
-    key = cart_key(product.pk, selected.pk if selected else None)
+    key = cart_key(product.pk, selected.pk if selected else None, option.pk if option else None)
     # Products share one stock pool regardless of selected color.
     other_qty = 0
     for k, val in data.items():
@@ -311,7 +336,7 @@ def cart_add(request, product_id):
     request.session.modified = True
     if _wants_json(request):
         return JsonResponse({"ok": True, **_cart_json(request)})
-    label = f" (رنگ {selected.name})" if selected else ""
+    label = (f" ({option.label}، کد {option.code})" if option else "") + (f" (رنگ {selected.name})" if selected else "")
     messages.success(request, f"«{product.name}»{label} به سبد خرید اضافه شد.")
     return redirect(safe_next(request, reverse("cart")))
 
@@ -325,7 +350,10 @@ def cart_update(request, product_id):
     color_raw = str(request.POST.get("color_id") or "").strip()
     if color_raw and not color_raw.isdigit():
         return JsonResponse({"ok": False, "error": "رنگ نامعتبر"}, status=400) if _wants_json(request) else redirect("cart")
-    key = cart_key(product_id, int(color_raw) if color_raw else None)
+    option_raw = str(request.POST.get("option_id") or "").strip()
+    if option_raw and (not option_raw.isascii() or not option_raw.isdigit()):
+        return JsonResponse({"ok": False, "error": "گزینه نامعتبر"}, status=400) if _wants_json(request) else redirect("cart")
+    key = cart_key(product_id, int(color_raw) if color_raw else None, int(option_raw) if option_raw else None)
     if key not in data:
         return JsonResponse({"ok": False, "error": "محصول در سبد وجود ندارد."}, status=400) if _wants_json(request) else redirect("cart")
     try:
