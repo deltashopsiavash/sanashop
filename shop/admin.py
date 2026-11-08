@@ -1,7 +1,7 @@
 from django.contrib import admin
 
 from .extra_models import CustomerProfile, EmailVerificationCode
-from .models import Category, ContentPage, DiscountCode, EmailVerificationToken, HeroSlide, Order, OrderItem, OrderStatusEvent, PaymentReceipt, Product, ProductColor, ProductImage, SiteSetting, SocialLink
+from .models import Category, ContentPage, DiscountCode, EmailVerificationToken, HeroSlide, Order, OrderItem, OrderStatusEvent, PaymentReceipt, Product, ProductColor, ProductOption, ProductImage, SiteSetting, SocialLink
 
 
 class ProductImageInline(admin.TabularInline):
@@ -15,6 +15,13 @@ class ProductColorInline(admin.TabularInline):
     fields = ("name", "hex_code", "is_active", "sort_order")
 
 
+class ProductOptionInline(admin.TabularInline):
+    model = ProductOption
+    extra = 1
+    fields = ("number", "name", "price", "is_available", "sort_order")
+    ordering = ("sort_order", "number")
+
+
 @admin.register(Product)
 class ProductAdmin(admin.ModelAdmin):
     list_display = ("sku", "name", "category", "price", "stock", "is_active", "is_featured", "is_amazing", "updated_at")
@@ -22,7 +29,7 @@ class ProductAdmin(admin.ModelAdmin):
     list_editable = ("price", "stock", "is_active", "is_featured", "is_amazing")
     search_fields = ("name", "sku", "description")
     prepopulated_fields = {"slug": ("name",)}
-    inlines = [ProductImageInline, ProductColorInline]
+    inlines = [ProductImageInline, ProductColorInline, ProductOptionInline]
 
 
 @admin.register(Category)
@@ -35,7 +42,7 @@ class CategoryAdmin(admin.ModelAdmin):
 class OrderItemInline(admin.TabularInline):
     model = OrderItem
     extra = 0
-    readonly_fields = ("product", "title", "selected_color", "color_hex", "unit_price", "quantity", "total")
+    readonly_fields = ("product", "title", "selected_color", "color_hex", "option_number", "option_title", "option_code", "unit_price", "quantity", "total")
 
 
 class OrderStatusInline(admin.TabularInline):
