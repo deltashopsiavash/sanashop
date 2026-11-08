@@ -104,6 +104,9 @@ async def version_command(update: Update, context):
             lines.append("🖼 گالری سایت: " +
                          ("✅ آماده" if "product_gallery_v17" in capabilities
                           else "⚠️ سایت نیازمند آپدیت"))
+            lines.append("🎨 رنگ‌های محصول: " +
+                         ("✅ آماده" if "product_colors_v21" in capabilities
+                          else "⚠️ سایت نیازمند آپدیت"))
         except Exception:
             lines.append("⚠️ ارتباط با سایت برای بررسی گالری برقرار نشد.")
     else:
