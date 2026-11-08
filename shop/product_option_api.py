@@ -15,10 +15,10 @@ def _error(detail, status=400):
     return JsonResponse({"ok": False, "error": detail}, status=status)
 
 
-def _row(option):
+def _row(option, parent_sku):
     return {
         "id": option.id, "number": option.number, "name": option.name,
-        "label": option.label, "code": option.code,
+        "label": option.label, "code": f"{parent_sku}-{option.number:02d}",
         "price": option.price, "is_available": option.is_available,
         "sort_order": option.sort_order,
     }
@@ -40,7 +40,7 @@ def handle_product_options(action, payload):
         return JsonResponse({"ok": True, "data": {
             "product_id": product.pk, "product_name": product.name,
             "product_sku": product.sku,
-            "options": [_row(row) for row in product.numbered_options.all()],
+            "options": [_row(row, product.sku) for row in product.numbered_options.all()],
         }})
 
     try:
@@ -106,4 +106,4 @@ def handle_product_options(action, payload):
             setattr(option, field, value)
         if changes:
             option.save(update_fields=list(changes))
-    return JsonResponse({"ok": True, "data": _row(option)})
+    return JsonResponse({"ok": True, "data": _row(option, product.sku)})
