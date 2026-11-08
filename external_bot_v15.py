@@ -68,6 +68,7 @@ async def _show_product(q, site, sid, pid):
             InlineKeyboardButton("🖼 گالری و عکس‌ها", callback_data=f"prod_gallery_v17:{sid}:{pid}"),
         ],
         [InlineKeyboardButton("🎨 رنگ‌های محصول", callback_data=f"prod_colors_v21:{sid}:{pid}")],
+        [InlineKeyboardButton("🔢 محصولات شماره‌دار", callback_data=f"opts_v22:{sid}:{pid}")],
         [InlineKeyboardButton("⬅️ محصولات", callback_data=f"products:{sid}")],
     ]
     return await q.edit_message_text(text, reply_markup=InlineKeyboardMarkup(rows))
