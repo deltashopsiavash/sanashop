@@ -185,8 +185,9 @@ def catalog(request, category_slug=None):
 
 def product_detail(request, slug):
     product = get_object_or_404(Product.objects.select_related("category").prefetch_related("gallery"), slug=slug, is_active=True)
-    related = Product.objects.filter(category=product.category, is_active=True).exclude(pk=product.pk)[:4]
-    return render(request, "shop/product.html", {"product": product, "related": related})
+    related = Product.objects.filter(category=product.category, is_active=True).exclude(pk=product.pk).prefetch_related("colors")[:4]
+    available_colors = [color for color in product.colors.all() if color.is_active]
+    return render(request, "shop/product.html", {"product": product, "related": related, "available_colors": available_colors})
 
 
 def _cart_context(request):
