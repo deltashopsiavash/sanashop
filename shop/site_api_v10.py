@@ -10,6 +10,8 @@ from .extra_models import ProductStory, TrustBadge
 from .models import Category, Product, SiteSetting
 from .product_gallery_api import handle_gallery_action
 from .product_color_api import handle_product_colors
+from .product_option_api import handle_product_options
+from .faq_api import faq_action
 from .site_api import _image, api_auth
 from .site_api_v4 import MAX_IMAGE_BYTES, MAX_STORY_BYTES, _decode_file
 from .site_api_v9 import bot_api as v9_bot_api
@@ -56,7 +58,15 @@ def bot_api(request):
 
     if action == "ping":
         store = SiteSetting.load()
-        return JsonResponse({"ok": True, "site": {"name": store.site_name, "version": 10, "capabilities": ["product_gallery_v17", "product_colors_v21"]}})
+        return JsonResponse({"ok": True, "site": {"name": store.site_name, "version": 10, "capabilities": ["product_gallery_v17", "product_colors_v21", "product_options_v22", "faq_edit_v22"]}})
+
+    options_response = handle_product_options(action, payload)
+    if options_response is not None:
+        return options_response
+
+    faq_response = faq_action(action, payload)
+    if faq_response is not None:
+        return faq_response
 
     colors_response = handle_product_colors(action, payload)
     if colors_response is not None:
