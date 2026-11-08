@@ -17,6 +17,7 @@
   <style>:root{--brand:{{ store_settings.primary_color|default:'#7b243f' }}}</style>
   {% block head %}{% endblock %}
   <link rel="stylesheet" href="{% static 'shop/product-options.css' %}?v=1">
+  <link rel="stylesheet" href="{% static 'shop/numbered-options.css' %}?v=1">
 </head>
 <body>
   {% if store_settings.announcement %}<div class="announcement typing-announcement" aria-label="اعلان فروشگاه"><span data-typewriter data-text="{{ store_settings.announcement|escape }}">{{ store_settings.announcement }}</span><i class="typing-cursor" aria-hidden="true"></i></div>{% endif %}
