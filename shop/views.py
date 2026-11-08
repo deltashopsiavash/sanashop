@@ -149,14 +149,14 @@ def home(request):
     amazing = (
         Product.objects.filter(is_active=True, is_amazing=True)
         .filter(Q(amazing_until__isnull=True) | Q(amazing_until__gt=now))
-        .select_related("category").prefetch_related("colors")[:10]
+        .select_related("category").prefetch_related("colors", "numbered_options")[:10]
     )
     return render(
         request,
         "shop/home.html",
         {
-            "featured": Product.objects.filter(is_active=True, is_featured=True).select_related("category").prefetch_related("colors")[:8],
-            "newest": Product.objects.filter(is_active=True).select_related("category").prefetch_related("colors").order_by("-created_at")[:8],
+            "featured": Product.objects.filter(is_active=True, is_featured=True).select_related("category").prefetch_related("colors", "numbered_options")[:8],
+            "newest": Product.objects.filter(is_active=True).select_related("category").prefetch_related("colors", "numbered_options").order_by("-created_at")[:8],
             "amazing": amazing,
             "categories": Category.objects.filter(is_active=True, parent__isnull=True)[:12],
             "hero_slides": HeroSlide.objects.filter(is_active=True)[:8],
@@ -170,7 +170,7 @@ def safe_next(request, fallback):
 
 
 def catalog(request, category_slug=None):
-    products = Product.objects.filter(is_active=True).select_related("category").prefetch_related("colors")
+    products = Product.objects.filter(is_active=True).select_related("category").prefetch_related("colors", "numbered_options")
     category = None
     if category_slug:
         category = get_object_or_404(Category, slug=category_slug, is_active=True)
@@ -185,7 +185,7 @@ def catalog(request, category_slug=None):
 
 def product_detail(request, slug):
     product = get_object_or_404(Product.objects.select_related("category").prefetch_related("gallery", "colors", "numbered_options"), slug=slug, is_active=True)
-    related = Product.objects.filter(category=product.category, is_active=True).exclude(pk=product.pk).prefetch_related("colors")[:4]
+    related = Product.objects.filter(category=product.category, is_active=True).exclude(pk=product.pk).prefetch_related("colors", "numbered_options")[:4]
     available_colors = [color for color in product.colors.all() if color.is_active]
     numbered_options = list(product.numbered_options.all())
     available_options = [option for option in numbered_options if option.is_available]
