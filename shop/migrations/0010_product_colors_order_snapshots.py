@@ -15,8 +15,8 @@ class Migration(migrations.Migration):
                 ("hex_code", models.CharField(
                     max_length=7, default="#808080",
                     validators=[django.core.validators.RegexValidator(
-                        regex=r"^#[0-9A-Fa-f]{6}$",
-                        message="کد رنگ باید به صورت #RRGGBB باشد.",
+                        r"^#[0-9A-Fa-f]{6}$",
+                        "کد رنگ باید به صورت #RRGGBB باشد.",
                     )], verbose_name="کد رنگ",
                 )),
                 ("is_active", models.BooleanField(default=True, verbose_name="قابل انتخاب")),
