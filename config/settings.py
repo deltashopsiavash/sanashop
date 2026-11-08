@@ -74,6 +74,7 @@ EMAIL_BACKEND = (
     else "django.core.mail.backends.smtp.EmailBackend"
 )
 RESEND_API_KEY = os.environ.get("RESEND_API_KEY", "") or os.environ.get("SMTP_PASSWORD", "")
+RESEND_SENDING_DOMAIN = os.environ.get("RESEND_SENDING_DOMAIN", "").strip().lower()
 EMAIL_HOST = os.environ.get("SMTP_HOST", "")
 EMAIL_PORT = int(os.environ.get("SMTP_PORT", "587"))
 EMAIL_HOST_USER = os.environ.get("SMTP_USER", "")
