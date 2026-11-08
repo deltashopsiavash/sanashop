@@ -507,10 +507,10 @@ async def callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
             items = (o.get("items") or [])
             if items:
-                text += "\\n\\n📦 اقلام سفارش:"
+                text += "\n\n📦 اقلام سفارش:"
                 for item in items:
                     chosen = f" | رنگ: {item['selected_color']}" if item.get("selected_color") else ""
-                    text += f"\\n• {item.get('title', '-')}{chosen} × {item.get('quantity', 1)}"
+                    text += f"\n• {item.get('title', '-')}{chosen} × {item.get('quantity', 1)}"
             kb = InlineKeyboardMarkup(
                 [
                     [
