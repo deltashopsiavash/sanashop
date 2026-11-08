@@ -99,7 +99,7 @@ def event_text(event):
             f"مبلغ نهایی: {money(payload.get('total'))} تومان", "", "📦 محصولات:",
         ]
         for item in payload.get("items") or []:
-            lines.append(f"• {item.get('title')} × {item.get('quantity')} — {money(item.get('total'))} تومان")
+            lines.append(f"• {item.get('title')}" + (f" | رنگ: {item.get('selected_color')}" if item.get('selected_color') else "") + f" × {item.get('quantity')} — {money(item.get('total'))} تومان")
         remaining = int(payload.get("reservation_remaining_seconds") or 0)
         if remaining:
             lines += ["", f"⏳ رزرو موجودی: حدود {max(1, remaining // 60)} دقیقه"]
