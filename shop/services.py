@@ -44,6 +44,9 @@ def order_event_payload(order):
             "title": item.title,
             "selected_color": item.selected_color,
             "color_hex": item.color_hex,
+            "option_number": item.option_number,
+            "option_code": item.option_code,
+            "option_title": item.option_title,
             "quantity": item.quantity,
             "unit_price": item.unit_price,
             "total": item.total,
@@ -99,7 +102,12 @@ def order_report_text(order, title="🧾 فاکتور جدید"):
         "📦 محصولات:",
     ]
     for item in payload["items"]:
-        lines.append(f"• {item['title']}" + (f" | رنگ: {item['selected_color']}" if item.get("selected_color") else "") + f" × {item['quantity']} — {money(item['total'])} تومان")
+        lines.append(
+            f"• {item['title']}"
+            + (f" | {item['option_title']} (کد {item['option_code']})" if item.get("option_code") else "")
+            + (f" | رنگ: {item['selected_color']}" if item.get("selected_color") else "")
+            + f" × {item['quantity']} — {money(item['total'])} تومان"
+        )
     if order.reservation_expires_at and not order.stock_committed:
         remaining = max(0, order.reservation_remaining_seconds // 60)
         lines += ["", f"⏳ رزرو موجودی: حدود {remaining} دقیقه باقی مانده"]
@@ -192,21 +200,26 @@ def expire_reservations(limit=100):
     return expired
 
 
-def cart_key(product_id, color_id=None):
-    """Keep existing numeric cart keys; colored lines get product:color keys."""
-    return f"{int(product_id)}:{int(color_id)}" if color_id else str(int(product_id))
+def cart_key(product_id, color_id=None, option_id=None):
+    """Legacy keys stay valid. A numbered choice is stored as pid:color-or-0:option."""
+    product_id = int(product_id)
+    if option_id is not None:
+        return f"{product_id}:{int(color_id or 0)}:{int(option_id)}"
+    return f"{product_id}:{int(color_id)}" if color_id else str(product_id)
 
 
 def parse_cart_key(value):
-    """No trust in session data: ignore unrecognized ids, never leak cross-products."""
     parts = str(value).split(":")
-    if len(parts) > 2 or any(not part.isdigit() for part in parts):
+    if len(parts) not in (1, 2, 3) or any(not part.isascii() or not part.isdigit() for part in parts):
         return None
-    product_id = int(parts[0])
-    color_id = int(parts[1]) if len(parts) == 2 else None
-    if product_id < 1 or (color_id is not None and color_id < 1):
+    ids = [int(p) for p in parts]
+    if ids[0] < 1 or (len(ids) == 2 and ids[1] < 1) or (len(ids) == 3 and ids[2] < 1):
         return None
-    return product_id, color_id
+    return (
+        ids[0],
+        ids[1] if len(ids) > 1 and ids[1] > 0 else None,
+        ids[2] if len(ids) == 3 else None,
+    )
 
 
 def cart_rows(request):
@@ -219,13 +232,13 @@ def cart_rows(request):
     products = {
         p.id: p for p in Product.objects.filter(
             pk__in=ids, is_active=True
-        ).select_related("category", "promotion").prefetch_related("colors")
+        ).select_related("category", "promotion").prefetch_related("colors", "numbered_options")
     }
     rows, subtotal, clean, used = [], 0, {}, {}
     for original, parsed_key, count in parsed:
         if parsed_key is None:
             continue
-        pid, color_id = parsed_key
+        pid, color_id, option_id = parsed_key
         product = products.get(pid)
         if not product:
             continue
@@ -234,12 +247,19 @@ def cart_rows(request):
         if all_colors and not choices:
             continue
         if color_id is None and choices:
-            # Existing carts remain usable when there is exactly one color.
+            # Legacy carts can keep their only color; never silently guess when multiple.
             if len(choices) != 1:
                 continue
             color_id = choices[0].id
         color = next((choice for choice in choices if choice.id == color_id), None)
         if color_id is not None and color is None:
+            continue
+
+        all_options = list(product.numbered_options.all())
+        option = next((o for o in all_options if o.id == option_id and o.is_available), None)
+        if all_options and option is None:
+            continue
+        if option_id is not None and option is None:
             continue
         try:
             requested = max(0, int(count))
@@ -249,18 +269,21 @@ def cart_rows(request):
         qty = min(requested, remaining)
         if qty <= 0:
             continue
-        key = cart_key(pid, color_id)
-        # When a legacy key and an explicit color key refer to the same line,
-        # combine them without exceeding shared stock.
+        key = cart_key(pid, color_id, option_id)
         used[pid] = used.get(pid, 0) + qty
         clean[key] = clean.get(key, 0) + qty
-        unit_price = effective_price(product)
+        unit_price = option.price if option else effective_price(product)
         line_total = unit_price * qty
         rows.append({
             "key": key, "product": product, "color": color,
             "color_id": color.id if color else None,
             "selected_color": color.name if color else "",
             "color_hex": color.hex_code if color else "",
+            "option": option,
+            "option_id": option.id if option else None,
+            "option_number": option.number if option else None,
+            "option_code": option.code if option else "",
+            "option_title": option.label if option else "",
             "quantity": qty, "unit_price": unit_price, "total": line_total,
         })
         subtotal += line_total
@@ -268,6 +291,7 @@ def cart_rows(request):
         request.session["cart"] = clean
         request.session.modified = True
     return rows, subtotal
+
 
 def discount_from_session(request, subtotal):
     code = (request.session.get("discount_code") or "").strip().upper()
@@ -299,8 +323,15 @@ def create_order(form, rows, subtotal, store, customer=None, discount=None, disc
             raise ValueError(f"رنگ محصول «{product.name}» را دوباره انتخاب کنید.")
         if cid and color is None:
             raise ValueError(f"رنگ محصول «{product.name}» معتبر نیست.")
-        unit_price = effective_price(product)
-        locked_rows.append((product, qty, unit_price, color))
+        from .models import ProductOption
+        option_id = row.get("option_id")
+        option = ProductOption.objects.filter(product=product, pk=option_id, is_available=True).first() if option_id else None
+        if product.numbered_options.exists() and option is None:
+            raise ValueError(f"شماره انتخاب‌شده برای «{product.name}» موجود نیست.")
+        if option_id and option is None:
+            raise ValueError("زیرمحصول انتخاب‌شده معتبر نیست.")
+        unit_price = option.price if option else effective_price(product)
+        locked_rows.append((product, qty, unit_price, color, option))
         locked_subtotal += unit_price * qty
 
     if locked_subtotal != subtotal:
@@ -322,11 +353,14 @@ def create_order(form, rows, subtotal, store, customer=None, discount=None, disc
     order.reservation_released = False
     order.save()
 
-    for product, qty, unit_price, color in locked_rows:
+    for product, qty, unit_price, color, option in locked_rows:
         OrderItem.objects.create(
             order=order, product=product, title=product.name,
             selected_color=color.name if color else "",
             color_hex=color.hex_code if color else "",
+            option_number=option.number if option else None,
+            option_code=option.code if option else "",
+            option_title=option.label if option else "",
             unit_price=unit_price, quantity=qty,
         )
         Product.objects.filter(pk=product.pk).update(reserved_stock=F("reserved_stock") + qty, updated_at=timezone.now())

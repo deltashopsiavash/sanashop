@@ -2,7 +2,7 @@ from django.db import transaction
 from django.db.models import F
 from django.utils import timezone
 
-from .models import DiscountCode, OrderItem, OrderStatusEvent, Product, ProductColor
+from .models import DiscountCode, OrderItem, OrderStatusEvent, Product, ProductColor, ProductOption
 from .pricing import effective_price
 from .services import order_event_payload, queue_bot_event, reservation_deadline
 
@@ -35,8 +35,15 @@ def create_order(form, rows, subtotal, store, customer=None, discount=None, disc
         if selected_color_id and selected is None:
             raise ValueError(f"رنگ انتخابی محصول «{product.name}» معتبر نیست.")
 
-        unit_price = effective_price(product)
-        locked_rows.append((product, qty, unit_price, selected))
+        option_id = row.get("option_id")
+        option = ProductOption.objects.filter(product_id=product.pk, pk=option_id, is_available=True).first() if option_id else None
+        if ProductOption.objects.filter(product_id=product.pk).exists() and option is None:
+            raise ValueError(f"زیرمحصول شماره‌دار «{product.name}» ناموجود یا حذف شده است.")
+        if option_id and option is None:
+            raise ValueError("گزینه خرید انتخاب‌شده معتبر نیست.")
+
+        unit_price = option.price if option else effective_price(product)
+        locked_rows.append((product, qty, unit_price, selected, option))
         locked_subtotal += unit_price * qty
 
     if locked_subtotal != subtotal:
@@ -58,13 +65,16 @@ def create_order(form, rows, subtotal, store, customer=None, discount=None, disc
     order.reservation_released = False
     order.save()
 
-    for product, qty, unit_price, selected in locked_rows:
+    for product, qty, unit_price, selected, option in locked_rows:
         OrderItem.objects.create(
             order=order,
             product=product,
             title=product.name,
             selected_color=selected.name if selected else "",
             color_hex=selected.hex_code if selected else "",
+            option_number=option.number if option else None,
+            option_code=option.code if option else "",
+            option_title=option.label if option else "",
             unit_price=unit_price,
             quantity=qty,
         )

@@ -131,6 +131,11 @@ class Product(models.Model):
     def available(self):
         return self.is_active and self.available_stock > 0
 
+    @property
+    def lowest_available_option_price(self):
+        prices = [opt.price for opt in self.numbered_options.all() if opt.is_available]
+        return min(prices) if prices else None
+
     def __str__(self):
         return self.name
 
@@ -165,6 +170,39 @@ class ProductColor(models.Model):
 
     def __str__(self):
         return f"{self.product.name} — {self.name}"
+
+
+
+class ProductOption(models.Model):
+    """Numbered purchasable item inside a parent gallery product.
+
+    Numbered options share the parent's overall stock/reservations, but each
+    option has its own selling price and sellable status. The gallery image
+    may already contain a matching number, so no mandatory extra upload.
+    """
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name="numbered_options")
+    number = models.PositiveIntegerField(validators=[MinValueValidator(1)], verbose_name="شماره محصول")
+    name = models.CharField(max_length=120, blank=True, default="", verbose_name="عنوان اختیاری")
+    price = models.PositiveBigIntegerField(validators=[MinValueValidator(1)], verbose_name="قیمت (تومان)")
+    is_available = models.BooleanField(default=True, verbose_name="موجود و قابل خرید")
+    sort_order = models.PositiveIntegerField(default=0, verbose_name="ترتیب")
+
+    class Meta:
+        ordering = ["sort_order", "number", "id"]
+        constraints = [
+            models.UniqueConstraint(fields=["product", "number"], name="unique_product_option_number"),
+        ]
+
+    @property
+    def code(self):
+        return f"{self.product.sku}-{self.number:02d}"
+
+    @property
+    def label(self):
+        return f"محصول شماره {self.number}" + (f" — {self.name}" if self.name else "")
+
+    def __str__(self):
+        return f"{self.product.name} | {self.label}"
 
 
 
@@ -245,6 +283,9 @@ class OrderItem(models.Model):
     title = models.CharField(max_length=180)
     selected_color = models.CharField(max_length=60, blank=True, default="", verbose_name="رنگ انتخاب‌شده")
     color_hex = models.CharField(max_length=7, blank=True, default="", verbose_name="کد رنگ سفارش")
+    option_number = models.PositiveIntegerField(null=True, blank=True, verbose_name="شماره زیرمحصول")
+    option_code = models.CharField(max_length=90, blank=True, default="", verbose_name="کد زیرمحصول سفارش")
+    option_title = models.CharField(max_length=120, blank=True, default="", verbose_name="عنوان زیرمحصول سفارش")
     unit_price = models.PositiveBigIntegerField()
     quantity = models.PositiveIntegerField(default=1)
 

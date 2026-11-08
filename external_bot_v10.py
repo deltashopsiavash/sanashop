@@ -25,6 +25,7 @@ def _site(uid, sid):
 def _settings_keyboard(sid, data):
     rows = [list(row) for row in v9._settings_keyboard(sid, data).inline_keyboard]
     rows.insert(-1, [InlineKeyboardButton("🔐 بکاپ", callback_data=f"backups_v10:{sid}")])
+    rows.insert(-1, [InlineKeyboardButton("❓ سؤالات متداول", callback_data=f"faq_v22:{sid}")])
     return InlineKeyboardMarkup(rows)
 
 

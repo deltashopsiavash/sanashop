@@ -509,7 +509,7 @@ async def callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             if items:
                 text += "\n\n📦 اقلام سفارش:"
                 for item in items:
-                    chosen = f" | رنگ: {item['selected_color']}" if item.get("selected_color") else ""
+                    chosen = (f" | {item['option_title']} | کد {item['option_code']}" if item.get("option_code") else "") + (f" | رنگ: {item['selected_color']}" if item.get("selected_color") else "")
                     text += f"\n• {item.get('title', '-')}{chosen} × {item.get('quantity', 1)}"
             kb = InlineKeyboardMarkup(
                 [

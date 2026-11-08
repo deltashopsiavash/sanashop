@@ -51,7 +51,7 @@ if [[ ! -x .venv/bin/python ]]; then
 fi
 .venv/bin/pip install --upgrade pip
 .venv/bin/pip install python-telegram-bot==22.3 httpx==0.28.1
-.venv/bin/python -m py_compile external_bot_v16.py external_bot_v15.py external_bot_gallery.py external_bot_colors.py external_bot_v10.py bot_backup_download.py
+.venv/bin/python -m py_compile external_bot_v16.py external_bot_v15.py external_bot_gallery.py external_bot_colors.py external_bot_options.py external_bot_faq.py external_bot_v10.py bot_backup_download.py
 install -d -m 700 /var/lib/sanashop-bot
 rm -f /var/lib/sanashop-bot/runtime.lock
 
