@@ -505,6 +505,12 @@ async def callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 f"رسید: {o.get('receipt_status') or '-'}\n"
                 f"کد رهگیری: {o.get('tracking_code') or '-'}"
             )
+            items = (o.get("items") or [])
+            if items:
+                text += "\\n\\n📦 اقلام سفارش:"
+                for item in items:
+                    chosen = f" | رنگ: {item['selected_color']}" if item.get("selected_color") else ""
+                    text += f"\\n• {item.get('title', '-')}{chosen} × {item.get('quantity', 1)}"
             kb = InlineKeyboardMarkup(
                 [
                     [
