@@ -9,6 +9,6 @@
       {% if promo %}<span class="old-price"><small>قیمت اصلی</small><del>{{ product.price|money }} تومان</del></span>{% endif %}
       <span class="new-price"><small>{% if promo == 'شگفت‌انگیز' %}قیمت شگفت‌انگیز{% elif promo %}قیمت با تخفیف{% else %}قیمت{% endif %}</small><strong>{{ current|money }} <span>تومان</span></strong></span>
     </div>
-    {% if product.available %}{% if product.colors.all %}<a class="btn btn-secondary btn-block product-card-action" href="{% url 'product_detail' product.slug %}">انتخاب رنگ و خرید</a>{% else %}<form class="product-card-form" method="post" action="{% url 'cart_add' product.id %}">{% csrf_token %}<input type="hidden" name="next" value="{{ request.path }}"><button class="btn btn-secondary btn-block">افزودن به سبد</button></form>{% endif %}{% else %}<button class="btn btn-disabled btn-block product-card-action" disabled>ناموجود</button>{% endif %}
+    {% if product.available %}{% if product.colors.all or product.numbered_options.exists %}<a class="btn btn-secondary btn-block product-card-action" href="{% url 'product_detail' product.slug %}">انتخاب شماره / رنگ و خرید</a>{% else %}<form class="product-card-form" method="post" action="{% url 'cart_add' product.id %}">{% csrf_token %}<input type="hidden" name="next" value="{{ request.path }}"><button class="btn btn-secondary btn-block">افزودن به سبد</button></form>{% endif %}{% else %}<button class="btn btn-disabled btn-block product-card-action" disabled>ناموجود</button>{% endif %}
   </div>
 </article>{% endwith %}
