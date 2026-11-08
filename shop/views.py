@@ -529,6 +529,10 @@ def zarinpal_callback(request):
 
 
 def content_page(request, page):
+    if page == "faq":
+        # Restore a missing FAQ page after legacy imports or manual page deletion.
+        from .faq_api import ensure_faq_page
+        ensure_faq_page()
     content = get_object_or_404(ContentPage, slug=page, is_active=True)
     return render(request, "shop/content_page.html", {"content_page": content})
 
