@@ -2,7 +2,7 @@ from django.db import transaction
 from django.db.models import F
 from django.utils import timezone
 
-from .models import DiscountCode, OrderItem, OrderStatusEvent, Product
+from .models import DiscountCode, OrderItem, OrderStatusEvent, Product, ProductColor
 from .pricing import effective_price
 from .services import order_event_payload, queue_bot_event, reservation_deadline
 
@@ -18,15 +18,25 @@ def create_order(form, rows, subtotal, store, customer=None, discount=None, disc
     shipping = store.shipping_for(subtotal)
     locked_rows = []
     locked_subtotal = 0
+    reserved_per_product = {}
 
     for row in rows:
         product = Product.objects.select_for_update().get(pk=row["product"].pk)
         qty = int(row["quantity"])
-        if not product.is_active or product.available_stock < qty:
+        reserved_per_product[product.pk] = reserved_per_product.get(product.pk, 0) + qty
+        if not product.is_active or product.available_stock < reserved_per_product[product.pk]:
             raise ValueError(f"موجودی آزاد «{product.name}» کافی نیست.")
 
+        available_colors = ProductColor.objects.filter(product_id=product.pk, is_active=True)
+        selected_color_id = row.get("color_id")
+        selected = available_colors.filter(pk=selected_color_id).first() if selected_color_id else None
+        if ProductColor.objects.filter(product_id=product.pk).exists() and selected is None:
+            raise ValueError(f"رنگ محصول «{product.name}» را دوباره انتخاب کنید.")
+        if selected_color_id and selected is None:
+            raise ValueError(f"رنگ انتخابی محصول «{product.name}» معتبر نیست.")
+
         unit_price = effective_price(product)
-        locked_rows.append((product, qty, unit_price))
+        locked_rows.append((product, qty, unit_price, selected))
         locked_subtotal += unit_price * qty
 
     if locked_subtotal != subtotal:
@@ -48,11 +58,13 @@ def create_order(form, rows, subtotal, store, customer=None, discount=None, disc
     order.reservation_released = False
     order.save()
 
-    for product, qty, unit_price in locked_rows:
+    for product, qty, unit_price, selected in locked_rows:
         OrderItem.objects.create(
             order=order,
             product=product,
             title=product.name,
+            selected_color=selected.name if selected else "",
+            color_hex=selected.hex_code if selected else "",
             unit_price=unit_price,
             quantity=qty,
         )

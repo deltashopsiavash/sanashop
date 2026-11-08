@@ -176,6 +176,7 @@ DJANGO_SUPERUSER_EMAIL=$ACME_EMAIL
 # Resend HTTPS API uses port 443 instead of SMTP 587 (often filtered).
 EMAIL_PROVIDER=resend_api
 RESEND_API_KEY=$RESEND_API_KEY
+RESEND_SENDING_DOMAIN=$RESEND_DOMAIN
 # Keep SMTP settings available for manual fallback.
 SMTP_HOST=smtp.resend.com
 SMTP_PORT=587

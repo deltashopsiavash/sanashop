@@ -1,12 +1,18 @@
 from django.contrib import admin
 
 from .extra_models import CustomerProfile, EmailVerificationCode
-from .models import Category, ContentPage, DiscountCode, EmailVerificationToken, HeroSlide, Order, OrderItem, OrderStatusEvent, PaymentReceipt, Product, ProductImage, SiteSetting, SocialLink
+from .models import Category, ContentPage, DiscountCode, EmailVerificationToken, HeroSlide, Order, OrderItem, OrderStatusEvent, PaymentReceipt, Product, ProductColor, ProductImage, SiteSetting, SocialLink
 
 
 class ProductImageInline(admin.TabularInline):
     model = ProductImage
     extra = 0
+
+
+class ProductColorInline(admin.TabularInline):
+    model = ProductColor
+    extra = 1
+    fields = ("name", "hex_code", "is_active", "sort_order")
 
 
 @admin.register(Product)
@@ -16,7 +22,7 @@ class ProductAdmin(admin.ModelAdmin):
     list_editable = ("price", "stock", "is_active", "is_featured", "is_amazing")
     search_fields = ("name", "sku", "description")
     prepopulated_fields = {"slug": ("name",)}
-    inlines = [ProductImageInline]
+    inlines = [ProductImageInline, ProductColorInline]
 
 
 @admin.register(Category)
@@ -29,7 +35,7 @@ class CategoryAdmin(admin.ModelAdmin):
 class OrderItemInline(admin.TabularInline):
     model = OrderItem
     extra = 0
-    readonly_fields = ("product", "title", "unit_price", "quantity", "total")
+    readonly_fields = ("product", "title", "selected_color", "color_hex", "unit_price", "quantity", "total")
 
 
 class OrderStatusInline(admin.TabularInline):

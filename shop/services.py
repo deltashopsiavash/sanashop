@@ -42,6 +42,8 @@ def order_event_payload(order):
             "product_id": item.product_id,
             "sku": item.product.sku if item.product else "",
             "title": item.title,
+            "selected_color": item.selected_color,
+            "color_hex": item.color_hex,
             "quantity": item.quantity,
             "unit_price": item.unit_price,
             "total": item.total,
@@ -97,7 +99,7 @@ def order_report_text(order, title="🧾 فاکتور جدید"):
         "📦 محصولات:",
     ]
     for item in payload["items"]:
-        lines.append(f"• {item['title']} × {item['quantity']} — {money(item['total'])} تومان")
+        lines.append(f"• {item['title']}" + (f" | رنگ: {item['selected_color']}" if item.get("selected_color") else "") + f" × {item['quantity']} — {money(item['total'])} تومان")
     if order.reservation_expires_at and not order.stock_committed:
         remaining = max(0, order.reservation_remaining_seconds // 60)
         lines += ["", f"⏳ رزرو موجودی: حدود {remaining} دقیقه باقی مانده"]
@@ -190,29 +192,82 @@ def expire_reservations(limit=100):
     return expired
 
 
+def cart_key(product_id, color_id=None):
+    """Keep existing numeric cart keys; colored lines get product:color keys."""
+    return f"{int(product_id)}:{int(color_id)}" if color_id else str(int(product_id))
+
+
+def parse_cart_key(value):
+    """No trust in session data: ignore unrecognized ids, never leak cross-products."""
+    parts = str(value).split(":")
+    if len(parts) > 2 or any(not part.isdigit() for part in parts):
+        return None
+    product_id = int(parts[0])
+    color_id = int(parts[1]) if len(parts) == 2 else None
+    if product_id < 1 or (color_id is not None and color_id < 1):
+        return None
+    return product_id, color_id
+
+
 def cart_rows(request):
     expire_reservations(limit=30)
     cart = request.session.get("cart", {})
-    products = Product.objects.filter(pk__in=cart.keys(), is_active=True).select_related("category", "promotion")
-    rows, subtotal = [], 0
-    clean = {}
-    for product in products:
+    if not isinstance(cart, dict):
+        cart = {}
+    parsed = [(str(key), parse_cart_key(key), val) for key, val in cart.items()]
+    ids = {p[0] for _, p, _ in parsed if p}
+    products = {
+        p.id: p for p in Product.objects.filter(
+            pk__in=ids, is_active=True
+        ).select_related("category", "promotion").prefetch_related("colors")
+    }
+    rows, subtotal, clean, used = [], 0, {}, {}
+    for original, parsed_key, count in parsed:
+        if parsed_key is None:
+            continue
+        pid, color_id = parsed_key
+        product = products.get(pid)
+        if not product:
+            continue
+        all_colors = list(product.colors.all())
+        choices = [choice for choice in all_colors if choice.is_active]
+        if all_colors and not choices:
+            continue
+        if color_id is None and choices:
+            # Existing carts remain usable when there is exactly one color.
+            if len(choices) != 1:
+                continue
+            color_id = choices[0].id
+        color = next((choice for choice in choices if choice.id == color_id), None)
+        if color_id is not None and color is None:
+            continue
         try:
-            requested = int(cart.get(str(product.pk), 0))
+            requested = max(0, int(count))
         except (TypeError, ValueError):
-            requested = 0
-        qty = min(max(requested, 0), product.available_stock)
-        if qty:
-            unit_price = effective_price(product)
-            line_total = unit_price * qty
-            rows.append({"product": product, "quantity": qty, "unit_price": unit_price, "total": line_total})
-            subtotal += line_total
-            clean[str(product.pk)] = qty
+            continue
+        remaining = max(0, product.available_stock - used.get(pid, 0))
+        qty = min(requested, remaining)
+        if qty <= 0:
+            continue
+        key = cart_key(pid, color_id)
+        # When a legacy key and an explicit color key refer to the same line,
+        # combine them without exceeding shared stock.
+        used[pid] = used.get(pid, 0) + qty
+        clean[key] = clean.get(key, 0) + qty
+        unit_price = effective_price(product)
+        line_total = unit_price * qty
+        rows.append({
+            "key": key, "product": product, "color": color,
+            "color_id": color.id if color else None,
+            "selected_color": color.name if color else "",
+            "color_hex": color.hex_code if color else "",
+            "quantity": qty, "unit_price": unit_price, "total": line_total,
+        })
+        subtotal += line_total
     if clean != cart:
         request.session["cart"] = clean
         request.session.modified = True
     return rows, subtotal
-
 
 def discount_from_session(request, subtotal):
     code = (request.session.get("discount_code") or "").strip().upper()
@@ -230,13 +285,22 @@ def create_order(form, rows, subtotal, store, customer=None, discount=None, disc
     shipping = store.shipping_for(subtotal)
     locked_rows = []
     locked_subtotal = 0
+    reserved = {}
     for row in rows:
         product = Product.objects.select_for_update().select_related("promotion").get(pk=row["product"].pk)
         qty = int(row["quantity"])
-        if not product.is_active or product.available_stock < qty:
+        reserved[product.pk] = reserved.get(product.pk, 0) + qty
+        if not product.is_active or product.available_stock < reserved[product.pk]:
             raise ValueError(f"موجودی آزاد «{product.name}» کافی نیست.")
+        colors = product.colors.filter(is_active=True)
+        cid = row.get("color_id")
+        color = colors.filter(pk=cid).first() if cid else None
+        if product.colors.exists() and color is None:
+            raise ValueError(f"رنگ محصول «{product.name}» را دوباره انتخاب کنید.")
+        if cid and color is None:
+            raise ValueError(f"رنگ محصول «{product.name}» معتبر نیست.")
         unit_price = effective_price(product)
-        locked_rows.append((product, qty, unit_price))
+        locked_rows.append((product, qty, unit_price, color))
         locked_subtotal += unit_price * qty
 
     if locked_subtotal != subtotal:
@@ -258,8 +322,13 @@ def create_order(form, rows, subtotal, store, customer=None, discount=None, disc
     order.reservation_released = False
     order.save()
 
-    for product, qty, unit_price in locked_rows:
-        OrderItem.objects.create(order=order, product=product, title=product.name, unit_price=unit_price, quantity=qty)
+    for product, qty, unit_price, color in locked_rows:
+        OrderItem.objects.create(
+            order=order, product=product, title=product.name,
+            selected_color=color.name if color else "",
+            color_hex=color.hex_code if color else "",
+            unit_price=unit_price, quantity=qty,
+        )
         Product.objects.filter(pk=product.pk).update(reserved_stock=F("reserved_stock") + qty, updated_at=timezone.now())
 
     OrderStatusEvent.objects.create(order=order, status="pending", note="فاکتور ساخته شد و موجودی موقتاً رزرو شد")

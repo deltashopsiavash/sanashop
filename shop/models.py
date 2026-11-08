@@ -3,7 +3,7 @@ import uuid
 from datetime import timedelta
 
 from django.conf import settings
-from django.core.validators import MaxValueValidator, MinValueValidator
+from django.core.validators import MaxValueValidator, MinValueValidator, RegexValidator
 from django.db import models
 from django.utils import timezone
 from django.utils.text import slugify
@@ -145,6 +145,29 @@ class ProductImage(models.Model):
         ordering = ["sort_order", "id"]
 
 
+class ProductColor(models.Model):
+    """Available color choices for one product; stock remains per product."""
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name="colors")
+    name = models.CharField(max_length=60, verbose_name="نام رنگ")
+    hex_code = models.CharField(
+        max_length=7, default="#808080",
+        validators=[RegexValidator(r"^#[0-9A-Fa-f]{6}$", "کد رنگ باید به صورت #RRGGBB باشد.")],
+        verbose_name="کد رنگ",
+    )
+    is_active = models.BooleanField(default=True, verbose_name="قابل انتخاب")
+    sort_order = models.PositiveIntegerField(default=0, verbose_name="ترتیب")
+
+    class Meta:
+        ordering = ["sort_order", "id"]
+        constraints = [
+            models.UniqueConstraint(fields=["product", "name"], name="unique_product_color_name"),
+        ]
+
+    def __str__(self):
+        return f"{self.product.name} — {self.name}"
+
+
+
 class Order(models.Model):
     STATUS = [
         ("pending", "در انتظار پرداخت"),
@@ -220,6 +243,8 @@ class OrderItem(models.Model):
     order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name="items")
     product = models.ForeignKey(Product, null=True, on_delete=models.SET_NULL)
     title = models.CharField(max_length=180)
+    selected_color = models.CharField(max_length=60, blank=True, default="", verbose_name="رنگ انتخاب‌شده")
+    color_hex = models.CharField(max_length=7, blank=True, default="", verbose_name="کد رنگ سفارش")
     unit_price = models.PositiveBigIntegerField()
     quantity = models.PositiveIntegerField(default=1)
 

@@ -296,3 +296,98 @@ does not alter this registry.
 The local restore command is destructive **only with `--confirm`**.
 Never run `docker compose down -v`, remove volumes, or delete the
 site installation merely to troubleshoot a download timeout.
+
+
+## Product colors, full images, and OTP email diagnostics
+
+### Product colors (independent per shop)
+
+A single product can have 0 colors (existing no-color behavior), 1 color
+or up to 30 color choices. The Django admin on **that site** exposes the
+`ProductColor` inline under Products. Each color has a Persian display
+name, a `#RRGGBB` code, and an active switch. Colors are **not** stored in
+the foreign bot's shared database; they live on each site's own PostgreSQL
+database and are also managed through the authenticated per-site bot API.
+
+In the Telegram manager, choose the specific site > Products > product >
+«🎨 رنگ‌های محصول» > «➕ افزودن رنگ جدید». Send, for example,
+`مشکی | #000000` or `صورتی | #FF69B4`; common Persian color names also
+work without a hex code. You can edit, enable/disable or delete a color
+for only that product. Previous order item color snapshots never change
+when a merchant edits a color.
+
+On the storefront, visitors select a visible swatch by name before adding
+a colored product to the cart. Products without configured colors still
+add directly from catalog cards. The cart allows different colors of the
+same product on separate rows but enforces the **same shared product stock**
+across all color rows. Selected color is saved as immutable text in each
+OrderItem and appears in checkout, invoice, Django admin, Telegram manager
+order details, and new-order notifications.
+
+All product cards, gallery main images, thumbnails, and cart/checkout
+images use `object-fit: contain`; images are never cropped **by CSS**,
+though transparent/letterboxed space can appear if their aspect ratios
+differ. An already cropped source cannot be reconstructed.
+
+### OTP / Resend on the Iranian site
+
+The latest HTTPS Resend backend checks the returned Resend message ID,
+uses a defined User-Agent, and avoids reporting a false success.
+If a registration OTP submission fails, the incomplete new account is
+retained so the user can **resend** once outbound connectivity is restored.
+A failed attempt does not impose the usual one-minute resend cooldown.
+OTP sending errors are logged on the site to make provider failures visible
+without displaying API credentials to customers.
+
+On an already-installed Iranian site, `update-site.sh` does **not**
+overwrite the existing private `.env`. Verify that the site's existing
+`.env` contains the correct Resend settings:
+
+```dotenv
+EMAIL_PROVIDER=resend_api
+RESEND_API_KEY=re_YOUR_REAL_SENDING_KEY
+RESEND_SENDING_DOMAIN=mail.example.com
+DEFAULT_FROM_EMAIL="Shop <support@mail.example.com>"
+```
+
+The Resend domain and sender must correspond to an actually **Verified**
+sending domain under the same Resend account as the API key. Editing
+`.env` requires a web container restart; do not post the file or key
+in support chats.
+
+After updating the Iran server and restarting the web container when
+configuration has changed:
+
+```bash
+cd /opt/sanashop
+docker compose exec -T web python manage.py test_store_email --diagnose
+docker compose exec -T web python manage.py test_store_email --to your-email@example.com
+docker compose logs --tail=100 web
+```
+
+`--diagnose` does **not** send any email. It verifies configured provider,
+sending domain, API key presence, and connectivity to `api.resend.com:443`.
+The `--to` test submits exactly one message; successful API submission is
+**not** proof of inbox delivery. Check Resend's Emails/Logs for actual
+delivery/error details, including HTTP 401/403 and account restrictions.
+If Iranian outbound HTTPS is blocked, no code change can force successful
+delivery: use a provider/network path that can actually reach Resend, or
+explicitly configure SMTP SSL port 465 where permitted.
+
+### Safe deployment sequence (site and bot are different servers)
+
+1. On the **Iranian server** that hosts the specific website, update the
+   site first:
+   `curl -fsSL https://raw.githubusercontent.com/deltashopsiavash/sanashop/main/update-site.sh | sudo bash`
+2. Verify `docker compose ps`, the migration `0010`, and the OTP
+   diagnostics above. No `install-site.sh`, fresh install, or volume reset.
+3. On the **foreign server** hosting the one multi-site Telegram bot,
+   run:
+   `curl -fsSL https://raw.githubusercontent.com/deltashopsiavash/sanashop/main/update-bot.sh | sudo bash`
+4. Use `/start` to open the *right site's* product panel; run `/version`
+   to check its new color capability. Existing other sites continue to
+   work, but new color management needs the corresponding site's update.
+
+The site migration adds a separate colors table and nullable-compatible
+new OrderItem text fields; existing products, orders, images and site bot
+connections are not deleted.
