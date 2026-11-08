@@ -391,3 +391,78 @@ explicitly configure SMTP SSL port 465 where permitted.
 The site migration adds a separate colors table and nullable-compatible
 new OrderItem text fields; existing products, orders, images and site bot
 connections are not deleted.
+
+
+## Numbered products inside one main product + editable FAQ (v22)
+
+When one catalog photo/gallery contains several individually priced pieces
+(e.g. `نیم‌ست` with numbered necklace, ring and bracelet), create **one
+main Product** and upload the numbered images to its existing Gallery.
+You can add the numbers directly onto the photos before uploading; the
+gallery remains attached to the same parent Product.
+
+On the **foreign multi-site Telegram bot**, open the correct site:
+`/start → site → products → main product → 🔢 محصولات شماره‌دار`.
+
+Use «➕ افزودن محصول شماره‌دار» and send:
+
+```text
+1 | 185000 | گردنبند
+2 | 95000 | انگشتر
+3 | 130000 | دستبند
+```
+
+These are separate messages, one for each option. Number and price are
+required, and title is optional. Every option receives a stable shopping
+code derived from the parent SKU and its number (for example
+`SNA-12345678-03`). Options can be edited (number/name/price),
+marked as unavailable and re-enabled, or permanently deleted.
+**Unavailable options remain visible in the storefront with a disabled
+radio and a «ناموجود» badge**, so clients still see option #3. You can
+also manage options from the **web admin of the specific site** using
+Product > Numbered options inline.
+
+Customers select a numbered option before adding to cart. Its own
+price is shown below the option and updates the prominent detail price
+on selection. The catalog card shows the lowest currently available
+numbered-option price. Purchases validate the selected option against
+the server database (including availability) and store the exact
+number, name, code and unit price in the OrderItem snapshot. These are
+shown in cart, checkout, customer invoice, bot order notifications,
+bot order details and web administration. Existing one-price products
+and color swatches continue to work, including combinations of color
+and numbered option.
+
+**Stock model:** Each numbered option has its own «موجود/ناموجود»
+switch and price, while **quantities/reservations are shared across the
+parent product**. Set parent Product stock to the combined total you
+are offering. This feature does not create separate stock counters per
+number. You can disable any one numbered option without deleting it.
+
+### FAQ from the per-site bot settings
+
+Use `/start → site → ⚙️ تنظیمات فروشگاه → ❓ سؤالات متداول`.
+View the current FAQ, append new Q&A text or replace the whole FAQ.
+The content is saved to that site's **own** Django ContentPage with
+slug `faq` and is publicly available at `/page/faq/`, including
+the existing footer link. If an older import erased this page, a
+safe fallback recreates it without touching other content pages.
+
+Both options/FAQ endpoints require the correct **site-specific**
+`SANASHOP_BOT_API_KEY`. One site's manager cannot use callbacks
+or text flows to modify another site's content.
+
+### Update deployment safely on both servers
+
+1. First update the **Iranian site's Django/Docker server**
+   with `update-site.sh` (migrates `0011`; does not reset data).
+2. Then update the **foreign multi-site Telegram bot** with `update-bot.sh`.
+3. In Telegram, send `/start` and `/version`, then open the **new
+   message's** product manager and settings. Both options and FAQ should
+   show ✅ in the version's capability check for that updated site.
+4. Confirm one option purchase in a test invoice and check the selected
+   `option_code` on the admin/bot order details.
+
+Never reinstall or run `docker compose down -v` for a normal update.
+Any future site backup includes numbered options because it uses the
+entire shop Django database fixture.
