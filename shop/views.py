@@ -15,6 +15,8 @@ from .iran_locations import province_city_map
 from .models import Category, ContentPage, EmailVerificationToken, HeroSlide, Order, PaymentReceipt, Product, SiteSetting
 from .services import (
     cart_rows,
+    cart_key,
+    parse_cart_key,
     create_order,
     discount_from_session,
     expire_reservations,
@@ -229,6 +231,9 @@ def _cart_json(request):
         "lines": [
             {
                 "id": row["product"].id,
+                "key": row["key"],
+                "color_id": row["color_id"],
+                "selected_color": row["selected_color"],
                 "quantity": row["quantity"],
                 "stock": row["product"].available_stock,
                 "total": row["total"],
@@ -254,34 +259,91 @@ def cart_add(request, product_id):
             return JsonResponse({"ok": False, "error": "این محصول در حال حاضر موجود نیست."}, status=400)
         messages.warning(request, "این محصول در حال حاضر موجود نیست.")
         return redirect(safe_next(request, reverse("catalog")))
+
+    # Client-supplied color IDs are never trusted. Colors belong to this product
+    # and must still be active at the moment the request is handled.
+    colors = list(product.colors.all())
+    selected = None
+    if colors:
+        value = str(request.POST.get("color_id") or "").strip()
+        if value.isdigit():
+            selected = next((color for color in colors if color.is_active and color.pk == int(value)), None)
+        if selected is None:
+            error = "لطفاً رنگ موجود این محصول را انتخاب کنید."
+            if _wants_json(request):
+                return JsonResponse({"ok": False, "error": error}, status=400)
+            messages.error(request, error)
+            return redirect("product_detail", slug=product.slug)
+    elif request.POST.get("color_id"):
+        return JsonResponse({"ok": False, "error": "این محصول رنگ انتخابی ندارد."}, status=400) if _wants_json(request) else redirect("product_detail", slug=product.slug)
+
     try:
         requested = int(request.POST.get("quantity", 1))
     except (TypeError, ValueError):
         requested = 1
-    qty = min(max(1, requested), product.available_stock)
     data = request.session.get("cart", {})
-    data[str(product.pk)] = min(int(data.get(str(product.pk), 0)) + qty, product.available_stock)
+    if not isinstance(data, dict):
+        data = {}
+    key = cart_key(product.pk, selected.pk if selected else None)
+    # Products share one stock pool regardless of selected color.
+    other_qty = 0
+    for k, val in data.items():
+        parsed = parse_cart_key(k)
+        if parsed and parsed[0] == product.pk and k != key:
+            try:
+                other_qty += max(0, int(val))
+            except (TypeError, ValueError):
+                pass
+    remaining = max(0, product.available_stock - other_qty)
+    if remaining < 1:
+        error = "موجودی این محصول با رنگ‌های موجود در سبد تکمیل شده است."
+        if _wants_json(request):
+            return JsonResponse({"ok": False, "error": error}, status=400)
+        messages.warning(request, error)
+        return redirect("cart")
+    try:
+        current = max(0, int(data.get(key, 0)))
+    except (TypeError, ValueError):
+        current = 0
+    data[key] = min(current + max(1, requested), remaining)
     request.session["cart"] = data
     request.session.modified = True
     if _wants_json(request):
         return JsonResponse({"ok": True, **_cart_json(request)})
-    messages.success(request, f"«{product.name}» به سبد خرید اضافه شد.")
+    label = f" (رنگ {selected.name})" if selected else ""
+    messages.success(request, f"«{product.name}»{label} به سبد خرید اضافه شد.")
     return redirect(safe_next(request, reverse("cart")))
 
 
 @require_POST
 def cart_update(request, product_id):
-    data = request.session.get("cart", {})
     product = get_object_or_404(Product, pk=product_id)
+    data = request.session.get("cart", {})
+    if not isinstance(data, dict):
+        data = {}
+    color_raw = str(request.POST.get("color_id") or "").strip()
+    if color_raw and not color_raw.isdigit():
+        return JsonResponse({"ok": False, "error": "رنگ نامعتبر"}, status=400) if _wants_json(request) else redirect("cart")
+    key = cart_key(product_id, int(color_raw) if color_raw else None)
+    if key not in data:
+        return JsonResponse({"ok": False, "error": "محصول در سبد وجود ندارد."}, status=400) if _wants_json(request) else redirect("cart")
     try:
         requested = int(request.POST.get("quantity", request.POST.get("qty", 0)))
     except (TypeError, ValueError):
         requested = 0
-    qty = max(0, min(requested, product.available_stock))
+    other_qty = 0
+    for k, val in data.items():
+        parsed = parse_cart_key(k)
+        if parsed and parsed[0] == product.pk and k != key:
+            try:
+                other_qty += max(0, int(val))
+            except (TypeError, ValueError):
+                pass
+    qty = max(0, min(requested, max(0, product.available_stock - other_qty)))
     if qty:
-        data[str(product_id)] = qty
+        data[key] = qty
     else:
-        data.pop(str(product_id), None)
+        data.pop(key, None)
     request.session["cart"] = data
     request.session.modified = True
     if _wants_json(request):
